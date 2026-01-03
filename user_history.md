@@ -26,3 +26,13 @@
 1.  Updated `app.py` to include `'cookiesfrombrowser': ('chrome',)` in `yt-dlp` options.
 2.  Added `pycryptodomex` to `requirements.txt` to support cookie decryption from the browser.
 3.  Reinstalled dependencies.
+
+**User**: 仍然无法提取，错误: ERROR: [Douyin] ... Fresh cookies ... 你可以拿这个网址做测试： `https://v.douyin.com/zOWN6NkyUJo/`
+
+**Action**:
+1.  Verified that `yt-dlp` still fails with provided Douyin URL even with browser cookies (likely due to strict anti-scraping or invalid cookies).
+2.  Implemented a fallback mechanism using **Playwright**.
+3.  Added `playwright` to `requirements.txt` and installed Chromium browser.
+4.  Updated `app.py`:
+    *   Added `get_douyin_video_url` function to simulate a real browser visit using Playwright.
+    *   Updated `download_video` to try `yt-dlp` first, and if it fails (specifically for Douyin), fallback to fetching the direct video URL via Playwright and then downloading that direct URL.
