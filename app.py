@@ -23,7 +23,8 @@ def download_video(url, output_dir):
         'format': 'best[ext=mp4]/best',
         'outtmpl': os.path.join(output_dir, '%(id)s.%(ext)s'),
         'quiet': True,
-        'noplaylist': True
+        'noplaylist': True,
+        'cookiesfrombrowser': ('chrome',), 
     }
     
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

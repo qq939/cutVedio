@@ -19,3 +19,10 @@
 4.  Updated `app.py` to use `yt-dlp` to download video from URL first, then extract frames using OpenCV.
 5.  Updated `requirements.txt` to include `yt-dlp`.
 6.  Updated project rules and tips.
+
+**User**: 错误: ERROR: [Douyin] ... Fresh cookies (not necessarily logged in) are needed ... 可使用 yt-dlp 的 --cookies-from-browser chrome 参数（需安装对应依赖），自动从浏览器读取 Cookie：
+
+**Action**:
+1.  Updated `app.py` to include `'cookiesfrombrowser': ('chrome',)` in `yt-dlp` options.
+2.  Added `pycryptodomex` to `requirements.txt` to support cookie decryption from the browser.
+3.  Reinstalled dependencies.
