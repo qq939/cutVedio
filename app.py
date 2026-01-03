@@ -1,6 +1,8 @@
 import os
 import cv2
 import time
+import glob
+import yt_dlp
 from flask import Flask, render_template, request, jsonify, send_from_directory
 
 app = Flask(__name__)
@@ -12,24 +14,48 @@ if not os.path.exists(UPLOAD_FOLDER):
 def index():
     return render_template('index.html')
 
+def download_video(url, output_dir):
+    """
+    Download video using yt-dlp.
+    Returns the path to the downloaded video file.
+    """
+    ydl_opts = {
+        'format': 'best[ext=mp4]/best',
+        'outtmpl': os.path.join(output_dir, '%(id)s.%(ext)s'),
+        'quiet': True,
+        'noplaylist': True
+    }
+    
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=True)
+        filename = ydl.prepare_filename(info)
+        return filename
+
 @app.route('/process', methods=['POST'])
 def process_video():
     video_url = request.form.get('url')
     if not video_url:
         return jsonify({'error': 'No URL provided'}), 400
 
+    downloaded_video_path = None
     try:
         # Clear previous frames
         for f in os.listdir(UPLOAD_FOLDER):
-            os.remove(os.path.join(UPLOAD_FOLDER, f))
+            file_path = os.path.join(UPLOAD_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
         
-        cap = cv2.VideoCapture(video_url)
+        # Download video using yt-dlp
+        # We download to UPLOAD_FOLDER temporarily, but maybe better to use a temp file
+        # to avoid mixing with frames. Let's use UPLOAD_FOLDER for simplicity but clean up.
+        downloaded_video_path = download_video(video_url, UPLOAD_FOLDER)
+        
+        cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
-             return jsonify({'error': 'Could not open video URL'}), 400
+             return jsonify({'error': 'Could not open downloaded video'}), 400
              
         fps = cap.get(cv2.CAP_PROP_FPS)
         if fps == 0:
-             # Fallback if FPS cannot be determined
              fps = 30 
              
         # Extract frame every 1 second
@@ -52,11 +78,15 @@ def process_video():
             
             frame_count += 1
             
-            # Safety break to prevent infinite loops on streams or too long videos
+            # Safety break
             if saved_count > 100: 
                 break
 
         cap.release()
+        
+        # Clean up the downloaded video file
+        if downloaded_video_path and os.path.exists(downloaded_video_path):
+            os.remove(downloaded_video_path)
         
         return jsonify({
             'message': f'Successfully extracted {saved_count} frames.',
@@ -64,6 +94,9 @@ def process_video():
         })
 
     except Exception as e:
+        # Clean up if error
+        if downloaded_video_path and os.path.exists(downloaded_video_path):
+            os.remove(downloaded_video_path)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/images/<filename>')

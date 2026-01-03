@@ -7,12 +7,16 @@
 - **Toggle Terminal**: `Ctrl + ` ` (Backtick)
 - **Format Document**: `Shift + Option + F`
 - **Go to Definition**: `F12` or `Cmd + Click`
-
-## Code Completion (IntelliSense)
-- **Trigger Suggestion**: `Ctrl + Space` (if it doesn't appear automatically)
-- **Accept Suggestion**: `Tab` or `Enter`
-- **Parameter Hints**: `Cmd + Shift + Space` (when inside function parentheses)
-- **Quick Fix**: `Cmd + .` (when you see a lightbulb or red squiggly)
+- **Trigger Suggestion**: `Ctrl + Space`
 
 ## Python Specific
 - **Select Interpreter**: `Cmd + Shift + P` -> "Python: Select Interpreter" (Select the one in .venv)
+- **Run Python File**: `Cmd + Option + N` (if Code Runner extension installed) or use Terminal
+
+## Git
+- **Git Commit**: `Cmd + Enter` (in Source Control view)
+- **Git Push**: `Cmd + Shift + P` -> "Git: Push"
+
+## Code Completion
+- Type a few characters and press `Tab` or `Enter` to accept suggestions.
+- `Ctrl + Space` to force trigger suggestions if they don't appear.

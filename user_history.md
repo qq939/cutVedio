@@ -9,3 +9,13 @@
 3.  Implemented Flask application (`app.py`) with OpenCV for video frame extraction.
 4.  Created frontend (`templates/index.html`) with requested styling.
 5.  Configured project rules and documentation.
+
+**User**: 你要参考ref.txt里面的做法，因为视频url不一定能下载视频，完成以后你告诉我你用了什么方法达到了目的。
+
+**Action**:
+1.  Read `ref.txt` (found `https://github.com/JefferyHcool/BiliNote.git`).
+2.  Cloned and analyzed `BiliNote` repository.
+3.  Identified that `BiliNote` uses `yt-dlp` for video downloading.
+4.  Updated `app.py` to use `yt-dlp` to download video from URL first, then extract frames using OpenCV.
+5.  Updated `requirements.txt` to include `yt-dlp`.
+6.  Updated project rules and tips.
