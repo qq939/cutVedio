@@ -39,7 +39,7 @@ def get_douyin_video_url(url):
             try:
                 # Douyin usually puts video in a video tag or within a specific container
                 # Wait for the video tag to be present
-                page.wait_for_selector('video', timeout=10000)
+                page.wait_for_selector('video', timeout=15000)
                 
                 # Get src from video tag
                 video_src = page.eval_on_selector('video', 'el => el.src')
@@ -181,4 +181,5 @@ def get_image(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Use 5002 to avoid conflict
+    app.run(debug=True, port=5002)

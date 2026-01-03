@@ -3,3 +3,7 @@ opencv-python
 yt-dlp
 pycryptodomex
 playwright
+gmssl
+httpx
+pydantic
+requests
