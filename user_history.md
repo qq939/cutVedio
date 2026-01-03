@@ -45,3 +45,6 @@
 3.  **Chosen Solution**: Reverted to and refined the **Playwright** approach as it was verified to successfully extract the video URL in testing (`test_playwright.py`). This mimics a real user interaction which is more robust than reverse-engineered API calls.
 4.  Verified `app.py` logic with `test_playwright.py`.
 5.  Cleaned up temporary test files.
+2026年 1月 4日 星期日 07时51分16秒 CST
+User: 你把video src链接写出来，并且测试结果要依据视频切片最终存入到tmp文件夹中。
+Assistant: Fixed Douyin extraction using Playwright with Mobile User Agent. Video SRC extracted: https://www.iesdouyin.com/aweme/v1/playwm/?video_id=v2700fgi0000d5civrfog65p8cq7aso0&ratio=720p&line=0. Frames saved to /tmp/vedio.
