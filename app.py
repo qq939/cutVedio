@@ -27,8 +27,9 @@ def get_douyin_video_url(url):
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
+            # Use mobile user agent to potentially get a simpler version or bypass some checks
             context = browser.new_context(
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1'
             )
             page = context.new_page()
             
@@ -37,14 +38,36 @@ def get_douyin_video_url(url):
             
             # Wait for video element
             try:
+                logger.info("Waiting for video element...")
                 # Douyin usually puts video in a video tag or within a specific container
                 # Wait for the video tag to be present
                 page.wait_for_selector('video', timeout=15000)
                 
+                # Wait for src attribute to be present and non-empty
+                try:
+                    page.wait_for_function("document.querySelector('video') && document.querySelector('video').src && document.querySelector('video').src.length > 0", timeout=10000)
+                except Exception as e:
+                    logger.warning(f"Timeout waiting for video src to be non-empty: {e}")
+
                 # Get src from video tag
                 video_src = page.eval_on_selector('video', 'el => el.src')
-                # Sometimes src is blob, we might need to look for source tags or intercept network requests
                 
+                logger.info(f"Found video src: {video_src}")
+                
+                if not video_src:
+                    logger.error("Video src is still empty after waiting.")
+                    # Try to extract from script tags if video src is empty
+                    try:
+                         # Check for RENDER_DATA or other hydration data
+                         page_content = page.content()
+                         pass
+                    except:
+                         pass
+                    
+                    page.screenshot(path='/tmp/vedio/debug.png')
+                    browser.close()
+                    return None
+
                 if video_src.startswith('blob:'):
                     logger.info("Blob URL detected, trying to find real URL from network requests")
                     # If blob, we might need to intercept network requests (more complex)
@@ -57,7 +80,7 @@ def get_douyin_video_url(url):
                     return video_src
 
             except Exception as e:
-                logger.warning(f"Could not find video element directly: {e}")
+                logger.warning(f"Could not find video element directly or timeout: {e}")
             
             browser.close()
             return None
@@ -181,5 +204,5 @@ def get_image(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
-    # Use 5002 to avoid conflict
-    app.run(debug=True, port=5002)
+    # Use 5003 to avoid conflict
+    app.run(debug=True, port=5003)

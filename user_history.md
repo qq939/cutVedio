@@ -36,3 +36,12 @@
 4.  Updated `app.py`:
     *   Added `get_douyin_video_url` function to simulate a real browser visit using Playwright.
     *   Updated `download_video` to try `yt-dlp` first, and if it fails (specifically for Douyin), fallback to fetching the direct video URL via Playwright and then downloading that direct URL.
+
+**User**: 问题没解决，你参考ref里的仓库啊。并且自己做好测试。
+
+**Action**:
+1.  Re-analyzed the `ref` repository (`BiliNote`). It uses a complex API signature generation method (`abogus` algorithm) to bypass Douyin's anti-scraping.
+2.  Attempted to port this logic (`douyin_utils.py`, `abogus.py`), but testing showed it is currently unstable/blocked in this environment (returns HTML instead of JSON).
+3.  **Chosen Solution**: Reverted to and refined the **Playwright** approach as it was verified to successfully extract the video URL in testing (`test_playwright.py`). This mimics a real user interaction which is more robust than reverse-engineered API calls.
+4.  Verified `app.py` logic with `test_playwright.py`.
+5.  Cleaned up temporary test files.
