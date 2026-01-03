@@ -1,0 +1,18 @@
+# VS Code Tips for Mac
+
+## Shortcuts
+- **Command Palette**: `Cmd + Shift + P` (Access all commands)
+- **Quick Open File**: `Cmd + P` (Quickly find files by name)
+- **Multi-Cursor**: `Opt + Click` (Add multiple cursors) or `Cmd + Option + Up/Down`
+- **Toggle Terminal**: `Ctrl + ` ` (Backtick)
+- **Format Document**: `Shift + Option + F`
+- **Go to Definition**: `F12` or `Cmd + Click`
+
+## Code Completion (IntelliSense)
+- **Trigger Suggestion**: `Ctrl + Space` (if it doesn't appear automatically)
+- **Accept Suggestion**: `Tab` or `Enter`
+- **Parameter Hints**: `Cmd + Shift + Space` (when inside function parentheses)
+- **Quick Fix**: `Cmd + .` (when you see a lightbulb or red squiggly)
+
+## Python Specific
+- **Select Interpreter**: `Cmd + Shift + P` -> "Python: Select Interpreter" (Select the one in .venv)
