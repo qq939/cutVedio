@@ -8,7 +8,8 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
-UPLOAD_FOLDER = '/tmp/vedio'
+# Change UPLOAD_FOLDER to project-relative path
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp', 'video')
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
@@ -34,7 +35,11 @@ def get_douyin_video_url(url):
             page = context.new_page()
             
             logger.info(f"Navigating to {url}")
-            page.goto(url)
+            try:
+                page.goto(url, timeout=60000) # Increase timeout to 60 seconds
+            except Exception as e:
+                logger.warning(f"Page navigation timed out or failed: {e}")
+                # Try to continue anyway, maybe it partially loaded
             
             # Wait for video element
             try:
@@ -64,7 +69,7 @@ def get_douyin_video_url(url):
                     except:
                          pass
                     
-                    page.screenshot(path='/tmp/vedio/debug.png')
+                    page.screenshot(path=os.path.join(UPLOAD_FOLDER, 'debug.png'))
                     browser.close()
                     return None
 

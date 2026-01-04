@@ -26,9 +26,11 @@ def verify_extraction():
         print(f"Response content: {response.text}")
         print(f"Time taken: {time.time() - start_time:.2f}s")
         
-        # Check /tmp/vedio
-        files = glob.glob('/tmp/vedio/*.jpg')
-        print(f"Found {len(files)} images in /tmp/vedio")
+        # Check project-relative tmp/video
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        video_dir = os.path.join(project_dir, 'tmp', 'video')
+        files = glob.glob(os.path.join(video_dir, '*.jpg'))
+        print(f"Found {len(files)} images in {video_dir}")
         if len(files) > 0:
             print("First 5 files:", files[:5])
             print("VERIFICATION SUCCESS: Frames extracted.")
