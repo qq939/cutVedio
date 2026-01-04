@@ -11,6 +11,10 @@ from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
 
+# Upload configuration
+VIDEO_UPLOAD_URL = "https://obs.dimond.top/reference.mp4"
+CHARACTER_UPLOAD_URL = "https://obs.dimond.top/character.png"
+
 # Directory setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGE_FOLDER = os.path.join(BASE_DIR, 'tmp', 'images')
@@ -230,10 +234,9 @@ def process_video():
 
     downloaded_video_path = None
     try:
-        # 1. Convert and upload character image (face/lulu.webp -> https://obs.dimond.top/character.png)
+        # 1. Convert and upload character image (face/lulu.webp -> CHARACTER_UPLOAD_URL)
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        character_upload_url = "https://obs.dimond.top/character.png"
-        convert_and_upload_character(character_path, character_upload_url)
+        convert_and_upload_character(character_path, CHARACTER_UPLOAD_URL)
         
         # Clear previous frames
         for f in os.listdir(IMAGE_FOLDER):
@@ -250,9 +253,8 @@ def process_video():
         # Download video using yt-dlp to VIDEO_FOLDER
         downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
         
-        # 2. Upload downloaded video to https://obs.dimond.top/reference.mp4
-        video_upload_url = "https://obs.dimond.top/reference.mp4"
-        upload_to_obs(downloaded_video_path, video_upload_url)
+        # 2. Upload downloaded video to VIDEO_UPLOAD_URL
+        upload_to_obs(downloaded_video_path, VIDEO_UPLOAD_URL)
         
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
@@ -295,7 +297,8 @@ def process_video():
         return jsonify({
             'message': f'Successfully extracted {saved_count} frames.',
             'images': saved_files,
-            'video_url': f"/video/{video_filename}"
+            'video_url': f"/video/{video_filename}",
+            'original_url': video_url
         })
 
     except Exception as e:

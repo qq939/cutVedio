@@ -109,7 +109,10 @@
         <div id="gallery" class="gallery"></div>
         
         <div id="videoContainer" style="margin-top: 30px; width: 100%; display: none;">
-            <h3>原视频</h3>
+            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                <h3 style="margin: 0; margin-right: 15px;">原视频</h3>
+                <a id="originalLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 14px;">原始下载地址</a>
+            </div>
             <video id="videoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px;">
                 Your browser does not support the video tag.
             </video>
@@ -124,6 +127,7 @@
             const submitBtn = document.getElementById('submitBtn');
             const videoContainer = document.getElementById('videoContainer');
             const videoPlayer = document.getElementById('videoPlayer');
+            const originalLink = document.getElementById('originalLink');
 
             if (!videoUrl) {
                 alert('请输入视频 URL');
@@ -162,6 +166,12 @@
                     if (data.video_url) {
                         videoPlayer.src = data.video_url;
                         videoContainer.style.display = 'block';
+                    }
+
+                    // Set original link
+                    if (data.original_url) {
+                        originalLink.href = data.original_url;
+                        originalLink.textContent = data.original_url;
                     }
                 } else {
                     statusDiv.textContent = '错误: ' + data.error;
