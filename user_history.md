@@ -69,3 +69,6 @@ Assistant: Updated upload_to_obs to use subprocess calling curl --upload-file. U
 2026年 1月 5日 星期一 05时34分08秒 CST
 User: 目录里是正确的，但是网页端的抽帧还是上一个视频的。另外，原视频三个字后面放下载地址。
 Assistant: Fixed image caching issue by adding Cache-Control headers in app.py and appending timestamp query parameter in frontend. Updated index.html to place the download link immediately after the 'Original Video' text.
+2026年 1月 5日 星期一 05时44分37秒 CST
+User: Terminal#222-229 配置到.env
+Assistant: Installed python-dotenv, added RUNWAYML_API_SECRET to .env, and updated scripts to load environment variables.
