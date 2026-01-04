@@ -66,3 +66,6 @@ Assistant: Refactored upload URLs to constants at the top of app.py. Implemented
 2026年 1月 5日 星期一 05时22分58秒 CST
 User: 对了，需要通过命令curl --upload-file filename http://obs.dimond.top/newfilename上传
 Assistant: Updated upload_to_obs to use subprocess calling curl --upload-file. Updated URLs to http protocol as requested. Verified successful uploads.
+2026年 1月 5日 星期一 05时34分08秒 CST
+User: 目录里是正确的，但是网页端的抽帧还是上一个视频的。另外，原视频三个字后面放下载地址。
+Assistant: Fixed image caching issue by adding Cache-Control headers in app.py and appending timestamp query parameter in frontend. Updated index.html to place the download link immediately after the 'Original Video' text.
