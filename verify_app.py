@@ -26,15 +26,25 @@ def verify_extraction():
         print(f"Response content: {response.text}")
         print(f"Time taken: {time.time() - start_time:.2f}s")
         
-        # Check project-relative tmp/video
+        # Check project-relative tmp/images
         project_dir = os.path.dirname(os.path.abspath(__file__))
-        video_dir = os.path.join(project_dir, 'tmp', 'video')
-        files = glob.glob(os.path.join(video_dir, '*.jpg'))
-        print(f"Found {len(files)} images in {video_dir}")
+        image_dir = os.path.join(project_dir, 'tmp', 'images')
+        files = glob.glob(os.path.join(image_dir, '*.jpg'))
+        print(f"Found {len(files)} images in {image_dir}")
         if len(files) > 0:
             print("First 5 files:", files[:5])
-            print("VERIFICATION SUCCESS: Frames extracted.")
+            
+        # Check project-relative tmp/video
+        video_dir = os.path.join(project_dir, 'tmp', 'video')
+        videos = glob.glob(os.path.join(video_dir, '*.*')) # Check for any video file
+        print(f"Found {len(videos)} videos in {video_dir}")
+        if len(videos) > 0:
+            print("Video files:", videos)
+            print("VERIFICATION SUCCESS: Frames and video found.")
         else:
+            print("VERIFICATION PARTIAL: Frames found but no video.")
+            
+        if len(files) == 0:
             print("VERIFICATION FAILED: No frames found.")
             
     except Exception as e:

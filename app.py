@@ -8,10 +8,15 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 
 app = Flask(__name__)
-# Change UPLOAD_FOLDER to project-relative path
-UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp', 'video')
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+
+# Directory setup
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_FOLDER = os.path.join(BASE_DIR, 'tmp', 'images')
+VIDEO_FOLDER = os.path.join(BASE_DIR, 'tmp', 'video')
+
+for folder in [IMAGE_FOLDER, VIDEO_FOLDER]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +25,14 @@ logger = logging.getLogger(__name__)
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    return send_from_directory(IMAGE_FOLDER, filename)
+
+@app.route('/video/<path:filename>')
+def serve_video(filename):
+    return send_from_directory(VIDEO_FOLDER, filename)
 
 def get_douyin_video_url(url):
     """
@@ -69,7 +82,7 @@ def get_douyin_video_url(url):
                     except:
                          pass
                     
-                    page.screenshot(path=os.path.join(UPLOAD_FOLDER, 'debug.png'))
+                    page.screenshot(path=os.path.join(IMAGE_FOLDER, 'debug.png'))
                     browser.close()
                     return None
 
@@ -163,13 +176,19 @@ def process_video():
     downloaded_video_path = None
     try:
         # Clear previous frames
-        for f in os.listdir(UPLOAD_FOLDER):
-            file_path = os.path.join(UPLOAD_FOLDER, f)
+        for f in os.listdir(IMAGE_FOLDER):
+            file_path = os.path.join(IMAGE_FOLDER, f)
             if os.path.isfile(file_path):
                 os.remove(file_path)
         
-        # Download video using yt-dlp
-        downloaded_video_path = download_video(video_url, UPLOAD_FOLDER)
+        # Clear previous videos
+        for f in os.listdir(VIDEO_FOLDER):
+            file_path = os.path.join(VIDEO_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        
+        # Download video using yt-dlp to VIDEO_FOLDER
+        downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
         
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
@@ -192,9 +211,10 @@ def process_video():
             
             if frame_count % frame_interval == 0:
                 filename = f"frame_{saved_count}.jpg"
-                filepath = os.path.join(UPLOAD_FOLDER, filename)
+                filepath = os.path.join(IMAGE_FOLDER, filename)
                 cv2.imwrite(filepath, frame)
-                saved_files.append(filename)
+                # Return URL path
+                saved_files.append(f"/images/{filename}")
                 saved_count += 1
             
             frame_count += 1
@@ -205,27 +225,21 @@ def process_video():
 
         cap.release()
         
-        # Clean up the downloaded video file
-        if downloaded_video_path and os.path.exists(downloaded_video_path):
-            os.remove(downloaded_video_path)
+        # Do not delete the downloaded video file, we want to display it
+        video_filename = os.path.basename(downloaded_video_path)
         
         return jsonify({
             'message': f'Successfully extracted {saved_count} frames.',
-            'images': saved_files
+            'images': saved_files,
+            'video_url': f"/video/{video_filename}"
         })
 
     except Exception as e:
         # Clean up if error
         if downloaded_video_path and os.path.exists(downloaded_video_path):
-            try:
-                os.remove(downloaded_video_path)
-            except:
-                pass
+             pass # Keep it for debugging or it might be partial
+        logger.error(f"Process failed: {e}")
         return jsonify({'error': str(e)}), 500
-
-@app.route('/images/<filename>')
-def get_image(filename):
-    return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
     # Use 5003 to avoid conflict

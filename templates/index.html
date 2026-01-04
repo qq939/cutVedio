@@ -98,36 +98,48 @@
 
     <div class="container">
         <h1>视频抽帧工具</h1>
+        
         <div class="input-group">
-            <input type="text" id="videoUrl" placeholder="请输入视频链接 (例如: http://example.com/video.mp4)">
+            <input type="text" id="videoUrl" placeholder="请输入视频 URL (例如 Douyin 链接)">
             <button id="submitBtn" onclick="processVideo()">提交</button>
         </div>
-        <div id="status"></div>
-    </div>
 
-    <div class="gallery" id="gallery"></div>
+        <div id="status"></div>
+
+        <div id="gallery" class="gallery"></div>
+        
+        <div id="videoContainer" style="margin-top: 30px; width: 100%; display: none;">
+            <h3>原视频</h3>
+            <video id="videoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px;">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+    </div>
 
     <script>
         async function processVideo() {
-            const urlInput = document.getElementById('videoUrl');
-            const submitBtn = document.getElementById('submitBtn');
+            const videoUrl = document.getElementById('videoUrl').value;
             const statusDiv = document.getElementById('status');
             const galleryDiv = document.getElementById('gallery');
-            
-            const url = urlInput.value.trim();
-            if (!url) {
-                alert('请输入有效的视频链接');
+            const submitBtn = document.getElementById('submitBtn');
+            const videoContainer = document.getElementById('videoContainer');
+            const videoPlayer = document.getElementById('videoPlayer');
+
+            if (!videoUrl) {
+                alert('请输入视频 URL');
                 return;
             }
 
-            submitBtn.disabled = true;
-            submitBtn.textContent = '处理中...';
-            statusDiv.textContent = '正在提取视频帧，请稍候...';
+            // Reset UI
+            statusDiv.textContent = '正在处理中，请稍候...';
             galleryDiv.innerHTML = '';
+            videoContainer.style.display = 'none';
+            videoPlayer.src = '';
+            submitBtn.disabled = true;
 
             try {
                 const formData = new FormData();
-                formData.append('url', url);
+                formData.append('url', videoUrl);
 
                 const response = await fetch('/process', {
                     method: 'POST',
@@ -138,19 +150,26 @@
 
                 if (response.ok) {
                     statusDiv.textContent = data.message;
-                    data.images.forEach(filename => {
+                    
+                    // Display images
+                    data.images.forEach(imageSrc => {
                         const img = document.createElement('img');
-                        img.src = `/images/${filename}`;
+                        img.src = imageSrc;
                         galleryDiv.appendChild(img);
                     });
+                    
+                    // Display video
+                    if (data.video_url) {
+                        videoPlayer.src = data.video_url;
+                        videoContainer.style.display = 'block';
+                    }
                 } else {
-                    statusDiv.textContent = '错误: ' + (data.error || '未知错误');
+                    statusDiv.textContent = '错误: ' + data.error;
                 }
             } catch (error) {
                 statusDiv.textContent = '请求失败: ' + error.message;
             } finally {
                 submitBtn.disabled = false;
-                submitBtn.textContent = '提交';
             }
         }
     </script>
