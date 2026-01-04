@@ -57,3 +57,6 @@ Assistant: The error log was from yt-dlp standard output but handled by fallback
 2026年 1月 4日 星期日 23时45分48秒 CST
 User: 把视频也在网页端展示出来，放在图片的下方
 Assistant: Updated app to separate image and video storage folders (tmp/images and tmp/video). Modified frontend to display the original video below the extracted frames. Verified successful extraction and display.
+2026年 1月 5日 星期一 05时01分20秒 CST
+User: 在解析完url后，把解析出来的视频上传到 https://obs.dimond.top/reference.mp4 ，并且把face/lulu.webp改格式上传到 https://obs.dimond.top/character.png
+Assistant: Implemented upload logic using requests.put. Converted lulu.webp to png before upload. Added Pillow to requirements. Note: Upload to obs.dimond.top failed with SSL/Connection error during testing, but logic is implemented.
