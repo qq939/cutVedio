@@ -93,6 +93,21 @@ def get_douyin_video_url(url):
         logger.error(f"Playwright error: {e}")
         return None
 
+class MyLogger(object):
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        # We handle errors manually, so we can suppress them here or log as warning
+        # Check if it's the known Douyin cookie error
+        if "Fresh cookies" in msg:
+            pass # Suppress this specific error log as we expect it
+        else:
+            logger.warning(f"yt-dlp error: {msg}")
+
 def download_video(url, output_dir):
     """
     Download video using yt-dlp.
@@ -103,7 +118,8 @@ def download_video(url, output_dir):
         'outtmpl': os.path.join(output_dir, '%(id)s.%(ext)s'),
         'quiet': True,
         'noplaylist': True,
-        'cookiesfrombrowser': ('chrome',), 
+        'cookiesfrombrowser': ('chrome',),
+        'logger': MyLogger(), # Use custom logger to suppress scary errors
     }
     
     try:
@@ -112,10 +128,9 @@ def download_video(url, output_dir):
             filename = ydl.prepare_filename(info)
             return filename
     except Exception as e:
-        logger.error(f"yt-dlp failed: {e}")
         # Fallback for Douyin if yt-dlp fails
         if 'douyin' in url:
-            logger.info("Attempting Playwright fallback for Douyin...")
+            logger.info("Standard yt-dlp download failed (expected), attempting Playwright fallback for Douyin...")
             direct_url = get_douyin_video_url(url)
             if direct_url:
                 logger.info(f"Found direct URL: {direct_url}")
@@ -123,6 +138,8 @@ def download_video(url, output_dir):
                 # Using yt-dlp on direct link is often safer
                 try:
                     ydl_opts.pop('cookiesfrombrowser', None) # Direct URL might not need cookies
+                    # We can keep the logger or use default one for the second attempt. 
+                    # Let's keep it to stay quiet.
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         info = ydl.extract_info(direct_url, download=True)
                         filename = ydl.prepare_filename(info)
@@ -131,8 +148,10 @@ def download_video(url, output_dir):
                      logger.error(f"Failed to download direct URL: {inner_e}")
                      raise e
             else:
+                logger.error(f"Fallback failed to get direct URL. Original error: {e}")
                 raise e
         else:
+            logger.error(f"yt-dlp failed: {e}")
             raise e
 
 @app.route('/process', methods=['POST'])
