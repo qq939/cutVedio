@@ -51,3 +51,6 @@ Assistant: Fixed Douyin extraction using Playwright with Mobile User Agent. Vide
 2026年 1月 4日 星期日 08时05分47秒 CST
 User: 将视频切片最终存入到项目文件夹下的tmp/video文件夹中，不是在根目录下的/tmp/video文件夹
 Assistant: Updated UPLOAD_FOLDER to use project-relative path (tmp/video). Increased Playwright navigation timeout to 60s. Verified success.
+2026年 1月 4日 星期日 10时05分30秒 CST
+User: 为什么又报错了？错误: ... Fresh cookies ... 
+Assistant: The error log was from yt-dlp standard output but handled by fallback. Updated code to suppress this specific error log to avoid confusion. Verified that fallback works correctly.
