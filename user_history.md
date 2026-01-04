@@ -54,3 +54,6 @@ Assistant: Updated UPLOAD_FOLDER to use project-relative path (tmp/video). Incre
 2026年 1月 4日 星期日 10时05分30秒 CST
 User: 为什么又报错了？错误: ... Fresh cookies ... 
 Assistant: The error log was from yt-dlp standard output but handled by fallback. Updated code to suppress this specific error log to avoid confusion. Verified that fallback works correctly.
+2026年 1月 4日 星期日 23时45分48秒 CST
+User: 把视频也在网页端展示出来，放在图片的下方
+Assistant: Updated app to separate image and video storage folders (tmp/images and tmp/video). Modified frontend to display the original video below the extracted frames. Verified successful extraction and display.
