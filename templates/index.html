@@ -111,7 +111,8 @@
         <div id="videoContainer" style="margin-top: 30px; width: 100%; display: none;">
             <div style="display: flex; align-items: center; margin-bottom: 10px;">
                 <h3 style="margin: 0; margin-right: 15px;">原视频</h3>
-                <a id="originalLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 14px;">原始下载地址</a>
+                <span style="color: #666; margin-right: 5px;">原始下载地址:</span>
+                <a id="originalLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 14px;"></a>
             </div>
             <video id="videoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px;">
                 Your browser does not support the video tag.
@@ -156,15 +157,17 @@
                     statusDiv.textContent = data.message;
                     
                     // Display images
+                    const timestamp = new Date().getTime();
                     data.images.forEach(imageSrc => {
                         const img = document.createElement('img');
-                        img.src = imageSrc;
+                        // Add timestamp to prevent caching
+                        img.src = `${imageSrc}?t=${timestamp}`;
                         galleryDiv.appendChild(img);
                     });
                     
                     // Display video
                     if (data.video_url) {
-                        videoPlayer.src = data.video_url;
+                        videoPlayer.src = `${data.video_url}?t=${timestamp}`;
                         videoContainer.style.display = 'block';
                     }
 

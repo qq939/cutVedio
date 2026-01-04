@@ -35,11 +35,17 @@ def index():
 
 @app.route('/images/<path:filename>')
 def serve_image(filename):
-    return send_from_directory(IMAGE_FOLDER, filename)
+    response = send_from_directory(IMAGE_FOLDER, filename)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 @app.route('/video/<path:filename>')
 def serve_video(filename):
-    return send_from_directory(VIDEO_FOLDER, filename)
+    response = send_from_directory(VIDEO_FOLDER, filename)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
 
 def get_douyin_video_url(url):
     """
