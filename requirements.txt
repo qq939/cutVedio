@@ -7,4 +7,5 @@ gmssl
 httpx
 pydantic
 requests
-Pillow
+runwayml
+python-dotenv

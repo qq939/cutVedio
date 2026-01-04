@@ -7,8 +7,11 @@ import logging
 import requests
 import subprocess
 from PIL import Image
+from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
+
+load_dotenv()
 
 app = Flask(__name__)
 

@@ -1,5 +1,8 @@
 import time
+from dotenv import load_dotenv
 from runwayml import RunwayML
+
+load_dotenv()
 
 client = RunwayML()
 
