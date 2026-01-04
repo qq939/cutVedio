@@ -7,3 +7,4 @@ gmssl
 httpx
 pydantic
 requests
+Pillow

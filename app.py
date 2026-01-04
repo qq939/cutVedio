@@ -4,6 +4,8 @@ import time
 import glob
 import yt_dlp
 import logging
+import requests
+from PIL import Image
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 
@@ -167,6 +169,59 @@ def download_video(url, output_dir):
             logger.error(f"yt-dlp failed: {e}")
             raise e
 
+def upload_to_obs(file_path, url):
+    """
+    Upload file to OBS URL.
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            logger.info(f"Uploading {file_path} to {url}")
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+            # Try PUT first with verify=False (SSL issues common with self-signed or specific configs)
+            response = requests.put(url, data=f, headers=headers, verify=False)
+            
+            if response.status_code in [200, 201]:
+                logger.info(f"Upload successful: {url}")
+                return True
+            else:
+                logger.error(f"Upload failed: {response.status_code} - {response.text}")
+                return False
+    except Exception as e:
+        logger.error(f"Upload error: {e}")
+        return False
+
+def convert_and_upload_character(source_path, target_url):
+    """
+    Convert image to png and upload.
+    """
+    try:
+        if not os.path.exists(source_path):
+             logger.error(f"Source file not found: {source_path}")
+             return False
+             
+        # Load and convert image
+        img = Image.open(source_path)
+        # Convert to RGBA if necessary (webp can support transparency) or RGB
+        img = img.convert("RGBA") 
+        
+        # Save to temporary png
+        temp_png = os.path.join(BASE_DIR, 'tmp', 'character.png')
+        img.save(temp_png, 'PNG')
+        
+        # Upload
+        success = upload_to_obs(temp_png, target_url)
+        
+        # Clean up
+        if os.path.exists(temp_png):
+            os.remove(temp_png)
+            
+        return success
+    except Exception as e:
+        logger.error(f"Character conversion/upload error: {e}")
+        return False
+
 @app.route('/process', methods=['POST'])
 def process_video():
     video_url = request.form.get('url')
@@ -175,6 +230,11 @@ def process_video():
 
     downloaded_video_path = None
     try:
+        # 1. Convert and upload character image (face/lulu.webp -> https://obs.dimond.top/character.png)
+        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+        character_upload_url = "https://obs.dimond.top/character.png"
+        convert_and_upload_character(character_path, character_upload_url)
+        
         # Clear previous frames
         for f in os.listdir(IMAGE_FOLDER):
             file_path = os.path.join(IMAGE_FOLDER, f)
@@ -189,6 +249,10 @@ def process_video():
         
         # Download video using yt-dlp to VIDEO_FOLDER
         downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
+        
+        # 2. Upload downloaded video to https://obs.dimond.top/reference.mp4
+        video_upload_url = "https://obs.dimond.top/reference.mp4"
+        upload_to_obs(downloaded_video_path, video_upload_url)
         
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
