@@ -72,3 +72,6 @@ Assistant: Fixed image caching issue by adding Cache-Control headers in app.py a
 2026年 1月 5日 星期一 05时44分37秒 CST
 User: Terminal#222-229 配置到.env
 Assistant: Installed python-dotenv, added RUNWAYML_API_SECRET to .env, and updated scripts to load environment variables.
+2026年 1月 5日 星期一 05时50分16秒 CST
+User: Terminal#230-234
+Assistant: Fixed NameError in video_change_face_demo.py by converting dictionary syntax to Python keyword arguments. Reverted URLs to https as required by RunwayML validation.
