@@ -93,3 +93,6 @@ Assistant: Added a file upload form in index.html to allow users to upload their
 2026年 1月 5日 星期一 23时10分31秒 CST
 User: 在控制台打印更多信息让我看到进展，因为我上传了密钥文件，但是图片和视频并没有上传到google drive，我要看到进展。
 Assistant: Added detailed logging to gdrive_utils.py to track the authentication and upload process. Note: Attempted to push service_account.json by mistake but corrected it immediately. The file is now excluded from git.
+2026年 1月 5日 星期一 23时19分55秒 CST
+User: 文件在为什么识别不到？日志打印了吗，啥也看不到，我要清楚的知道程序在干什么，成功了还是失败了。
+Assistant: Added more debug logging to gdrive_utils.py to print the absolute path it's checking and list current directory contents if the file is missing. This will help diagnose why service_account.json is not being found.
