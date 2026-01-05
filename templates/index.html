@@ -123,7 +123,9 @@
             <div id="gdriveWarning" style="color: #dc3545; margin-bottom: 10px; display: none;">
                 <strong>注意：</strong> 未检测到 Google Drive 凭证 (service_account.json) 或上传失败。
                 <br>请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。
-                <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">前往 Google Cloud Console 创建</a>
+                <br><strong>更重要的是，请确保您已经在 Google Cloud Console 中启用了 "Google Drive API"。</strong>
+                <br><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank">点击此处启用 Google Drive API</a>
+                <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">前往 Service Accounts 管理</a>
                 
                 <div style="margin-top: 10px; padding: 10px; border: 1px dashed #ccc; background-color: #fff;">
                     <strong>上传 Service Account Key (JSON)</strong>

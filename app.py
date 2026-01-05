@@ -11,6 +11,12 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 import gdrive_utils
+# Import the RunwayML task function
+try:
+    from video_change_face_demo import run_runway_task
+except ImportError:
+    run_runway_task = None
+    logger.warning("Could not import run_runway_task from video_change_face_demo.py")
 
 load_dotenv()
 
@@ -311,6 +317,24 @@ def process_video():
         video_gdrive_url = gdrive_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
         logger.info(f"Video uploaded to: {video_gdrive_url}")
         
+        # 3. Trigger RunwayML Task (Optional/Async)
+        runway_result = None
+        if run_runway_task and character_gdrive_url and video_gdrive_url:
+             try:
+                 # Note: This is blocking and might timeout the request if it takes too long.
+                 # ideally this should be a background task (e.g. Celery), but for now we call it directly
+                 # or maybe we just return the links and let the user trigger it manually if they prefer.
+                 # Given the requirement "Replace Google Drive placeholder links... in video_change_face_demo.py",
+                 # the user might expect it to run.
+                 # Let's log that we are skipping auto-execution to avoid timeout, 
+                 # or we can try to run it if it's fast enough (RunwayML create is fast, wait_for_task_output is slow).
+                 # The refactored function calls wait_for_task_output().
+                 # So we should probably NOT call it here synchronously.
+                 logger.info("RunwayML task integration ready. Use the returned GDrive URLs to run video_change_face_demo.py manually to avoid request timeout.")
+                 pass
+             except Exception as e:
+                 logger.error(f"Failed to trigger RunwayML task: {e}")
+
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
              return jsonify({'error': 'Could not open downloaded video'}), 400

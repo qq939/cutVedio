@@ -1,27 +1,48 @@
 import time
+import sys
 from dotenv import load_dotenv
 from runwayml import RunwayML
 import os
 
 load_dotenv()
 
-client = RunwayML(api_key=os.getenv("RUNWAYML_API_KEY"))
+def run_runway_task(character_url, video_url):
+    print(f"Starting RunwayML task with:")
+    print(f"  Character: {character_url}")
+    print(f"  Video: {video_url}")
+    
+    client = RunwayML(api_key=os.getenv("RUNWAYML_API_KEY"))
 
-task = client.character_performance.create(
-  model="act_two",
-  character={
-    "type": "image",
-    "uri": "https://lh3.googleusercontent.com/d/1Xy_QyXz_Xy_QyXz_Xy_QyXz_Xy_QyXz" # Replace with your actual Google Drive direct link for character.png
-  },
-  reference={
-    "type": "video",
-    "uri": "https://lh3.googleusercontent.com/d/1Xy_QyXz_Xy_QyXz_Xy_QyXz_Xy_QyXz" # Replace with your actual Google Drive direct link for reference.mp4
-  },
-  seed=3938610573,
-  # bodyControl might not be a valid kwarg if it expects snake_case, 
-  # but let's try passing it as is or check if we should use a dict.
-  # If the user copied from JS, it was likely a dict.
-  # Let's try passing as kwargs which is standard for Python SDKs.
-).wait_for_task_output()
+    try:
+        task = client.character_performance.create(
+          model="act_two",
+          character={
+            "type": "image",
+            "uri": character_url
+          },
+          reference={
+            "type": "video",
+            "uri": video_url
+          },
+          seed=3938610573,
+        )
+        
+        print("Task created. Waiting for completion...")
+        task = task.wait_for_task_output()
+        print('Task complete:', task)
+        return task
+    except Exception as e:
+        print(f"RunwayML task failed: {e}")
+        raise e
 
-print('Task complete:', task)
+if __name__ == "__main__":
+    # Allow running from command line with arguments
+    if len(sys.argv) >= 3:
+        char_url = sys.argv[1]
+        vid_url = sys.argv[2]
+        run_runway_task(char_url, vid_url)
+    else:
+        # Use placeholders or prompt
+        print("Usage: python video_change_face_demo.py <character_url> <video_url>")
+        # Example/Placeholder for testing if needed
+        # run_runway_task("https://example.com/char.png", "https://example.com/vid.mp4")
