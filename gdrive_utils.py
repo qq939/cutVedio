@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
 SERVICE_ACCOUNT_FILE = 'service_account.json'
+TARGET_FOLDER_ID = '1MvK_nCmctk1KjtXrcDoc1ZKmQEZ5lRwD'
 
 def authenticate():
     """Authenticates using service account."""
@@ -48,13 +49,16 @@ def upload_file(file_path, file_name, mime_type=None):
         print("DEBUG: Building Drive service...", flush=True)
         service = build('drive', 'v3', credentials=creds)
 
-        # Check if file exists
-        print(f"DEBUG: Checking if file '{file_name}' already exists in Drive...", flush=True)
-        query = f"name = '{file_name}' and trashed = false"
+        # Check if file exists in the specific folder
+        print(f"DEBUG: Checking if file '{file_name}' already exists in Drive folder {TARGET_FOLDER_ID}...", flush=True)
+        query = f"name = '{file_name}' and '{TARGET_FOLDER_ID}' in parents and trashed = false"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         files = results.get('files', [])
 
-        file_metadata = {'name': file_name}
+        file_metadata = {
+            'name': file_name,
+            'parents': [TARGET_FOLDER_ID]
+        }
         media = MediaFileUpload(file_path, mimetype=mime_type)
 
         file_id = None
