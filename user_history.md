@@ -81,3 +81,6 @@ Assistant: Updated video_change_face_demo.py to use Google Drive placeholder lin
 2026年 1月 5日 星期一 19时31分52秒 CST
 User: 要通过google drive api实现读和写，并不是单纯的读取，你忘记了。" `https://obs.dimond.top/character.png` "" `https://obs.dimond.top/reference.mp4` "这两个url是这个项目存的啊，把app.py逻辑也改一下，用google drive api
 Assistant: Added google-api-python-client dependencies. Created gdrive_utils.py for Google Drive API interaction (auth, upload, public link generation). Modified app.py to upload character image and downloaded video to Google Drive instead of OBS, and return the generated direct links.
+2026年 1月 5日 星期一 20时08分13秒 CST
+User: 优化一下自动过滤出链接，如果粘贴的内容是这样也能够找到链接： 0.20 猫生已无憾～  https://v.douyin.com/vx7kJVQNNY4/  复制此链接，打开抖音搜索，直接观看视频！ D@h.BT IiP:/ 11/01
+Assistant: Updated app.py to use regex for extracting URLs from user input, allowing for mixed text and URL content. Verified success.
