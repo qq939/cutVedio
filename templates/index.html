@@ -118,6 +118,18 @@
                 Your browser does not support the video tag.
             </video>
         </div>
+        <div id="gdriveContainer" style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; display: none; text-align: left;">
+            <h3 style="margin-top: 0; font-size: 16px;">Google Drive 上传状态</h3>
+            <div id="gdriveWarning" style="color: #dc3545; margin-bottom: 10px; display: none;">
+                <strong>注意：</strong> 未检测到 Google Drive 凭证 (service_account.json) 或上传失败。
+                <br>请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。
+                <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">前往 Google Cloud Console 创建</a>
+            </div>
+            <div style="display: flex; gap: 15px;">
+                <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
+                <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -129,7 +141,8 @@
             const videoContainer = document.getElementById('videoContainer');
             const videoPlayer = document.getElementById('videoPlayer');
             const originalLink = document.getElementById('originalLink');
-
+            const gdriveContainer = document.getElementById('gdriveContainer');
+            
             if (!videoUrl) {
                 alert('请输入视频 URL');
                 return;
@@ -139,6 +152,7 @@
             statusDiv.textContent = '正在处理中，请稍候...';
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
+            gdriveContainer.style.display = 'none';
             videoPlayer.src = '';
             submitBtn.disabled = true;
 
@@ -176,6 +190,40 @@
                         originalLink.href = data.original_url;
                         originalLink.textContent = data.original_url;
                     }
+
+                    // Display Google Drive Links (if any)
+                    const gdriveContainer = document.getElementById('gdriveContainer');
+                    const characterLink = document.getElementById('characterLink');
+                    const videoLink = document.getElementById('videoLink');
+                    const gdriveWarning = document.getElementById('gdriveWarning');
+
+                    if (data.gdrive_urls && (data.gdrive_urls.character || data.gdrive_urls.video)) {
+                        gdriveContainer.style.display = 'block';
+                        gdriveWarning.style.display = 'none';
+                        
+                        if (data.gdrive_urls.character) {
+                            characterLink.href = data.gdrive_urls.character;
+                            characterLink.textContent = '角色图片 (character.png)';
+                            characterLink.style.display = 'inline-block';
+                        } else {
+                            characterLink.style.display = 'none';
+                        }
+
+                        if (data.gdrive_urls.video) {
+                            videoLink.href = data.gdrive_urls.video;
+                            videoLink.textContent = '处理视频 (reference.mp4)';
+                            videoLink.style.display = 'inline-block';
+                        } else {
+                            videoLink.style.display = 'none';
+                        }
+                    } else {
+                        // Show warning if upload failed (likely due to missing credentials)
+                        gdriveContainer.style.display = 'block';
+                        gdriveWarning.style.display = 'block';
+                        characterLink.style.display = 'none';
+                        videoLink.style.display = 'none';
+                    }
+
                 } else {
                     statusDiv.textContent = '错误: ' + data.error;
                 }
