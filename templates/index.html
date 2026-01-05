@@ -182,6 +182,58 @@
             }
         }
 
+        function manualUploadCharacter() {
+            const statusDiv = document.getElementById('manualUploadStatus');
+            statusDiv.textContent = '正在推送角色图片...';
+            statusDiv.style.color = 'blue';
+            
+            fetch('/manual_upload/character', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    statusDiv.textContent = '角色图片推送失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                } else {
+                    statusDiv.innerHTML = `角色图片推送成功! <a href="${data.url}" target="_blank">链接</a>`;
+                    statusDiv.style.color = 'green';
+                    // Update character link if hidden
+                    const link = document.getElementById('characterLink');
+                    link.href = data.url;
+                    link.style.display = 'inline';
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '请求错误: ' + error;
+                statusDiv.style.color = 'red';
+            });
+        }
+
+        function manualUploadVideo() {
+            const statusDiv = document.getElementById('manualUploadStatus');
+            statusDiv.textContent = '正在推送视频...';
+            statusDiv.style.color = 'blue';
+            
+            fetch('/manual_upload/video', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    statusDiv.textContent = '视频推送失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                } else {
+                    statusDiv.innerHTML = `视频推送成功! <a href="${data.url}" target="_blank">链接</a>`;
+                    statusDiv.style.color = 'green';
+                    // Update video link if hidden
+                    const link = document.getElementById('videoLink');
+                    link.href = data.url;
+                    link.style.display = 'inline';
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '请求错误: ' + error;
+                statusDiv.style.color = 'red';
+            });
+        }
+
         async function processVideo() {
             const videoUrl = document.getElementById('videoUrl').value;
             const statusDiv = document.getElementById('status');

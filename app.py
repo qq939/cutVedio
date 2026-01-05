@@ -273,6 +273,50 @@ def upload_key():
     else:
         return jsonify({'error': 'Invalid file type. Must be .json'}), 400
 
+@app.route('/manual_upload/character', methods=['POST'])
+def manual_upload_character():
+    try:
+        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+        gdrive_url = convert_and_upload_character(character_path)
+        
+        if gdrive_url:
+            return jsonify({'message': 'Character uploaded successfully', 'url': gdrive_url})
+        else:
+            return jsonify({'error': 'Failed to upload character. Check logs.'}), 500
+    except Exception as e:
+        logger.error(f"Manual character upload error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/manual_upload/video', methods=['POST'])
+def manual_upload_video():
+    try:
+        # Find the video file in VIDEO_FOLDER
+        # We assume there's only one relevant video file or we take the latest
+        files = glob.glob(os.path.join(VIDEO_FOLDER, '*.*'))
+        # Filter for video extensions if needed, but for now take anything not hidden
+        video_files = [f for f in files if not os.path.basename(f).startswith('.')]
+        
+        if not video_files:
+             return jsonify({'error': 'No video file found in tmp/video to upload. Please process a video first.'}), 404
+             
+        # Sort by modification time, latest first
+        video_files.sort(key=os.path.getmtime, reverse=True)
+        latest_video = video_files[0]
+        
+        video_filename = os.path.basename(latest_video)
+        logger.info(f"Manual upload: Found video {video_filename}")
+        
+        video_gdrive_url = gdrive_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
+        
+        if video_gdrive_url:
+            return jsonify({'message': 'Video uploaded successfully', 'url': video_gdrive_url})
+        else:
+             return jsonify({'error': 'Failed to upload video. Check logs.'}), 500
+             
+    except Exception as e:
+        logger.error(f"Manual video upload error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/process', methods=['POST'])
 def process_video():
     raw_input = request.form.get('url')
