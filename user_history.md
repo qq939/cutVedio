@@ -78,3 +78,6 @@ Assistant: Fixed NameError in video_change_face_demo.py by converting dictionary
 2026年 1月 5日 星期一 19时26分48秒 CST
 User: Terminal#277-290 网络不通，那我们用google drive吧
 Assistant: Updated video_change_face_demo.py to use Google Drive placeholder links as the previous OBS links were inaccessible. Added a TODO to replace them with actual direct links.
+2026年 1月 5日 星期一 19时31分52秒 CST
+User: 要通过google drive api实现读和写，并不是单纯的读取，你忘记了。" `https://obs.dimond.top/character.png` "" `https://obs.dimond.top/reference.mp4` "这两个url是这个项目存的啊，把app.py逻辑也改一下，用google drive api
+Assistant: Added google-api-python-client dependencies. Created gdrive_utils.py for Google Drive API interaction (auth, upload, public link generation). Modified app.py to upload character image and downloaded video to Google Drive instead of OBS, and return the generated direct links.
