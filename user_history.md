@@ -87,3 +87,6 @@ Assistant: Updated app.py to use regex for extracting URLs from user input, allo
 2026年 1月 5日 星期一 20时16分17秒 CST
 User: 我没有看到存入google drive里。也没看到services_account.json，也没看到前端显示的gdrive_urls。如果不成功需要提示，如果没有登陆凭证需要引导我获取。
 Assistant: Updated frontend to display Google Drive upload status. Added a warning message with instructions if service_account.json is missing or upload fails. Modified app.py to return upload status in API response.
+2026年 1月 5日 星期一 21时21分21秒 CST
+User: 请在这段文字之后让我上传json密钥： Google Drive 上传状态 注意：  未检测到 Google Drive 凭证 (service_account.json) 或上传失败。 请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。 前往 Google Cloud Console 创建
+Assistant: Added a file upload form in index.html to allow users to upload their Google service account JSON key directly from the browser. Implemented /upload_key endpoint in app.py to handle the file upload and save it as service_account.json.
