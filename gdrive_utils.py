@@ -14,23 +14,23 @@ SERVICE_ACCOUNT_FILE = 'service_account.json'
 def authenticate():
     """Authenticates using service account."""
     abs_path = os.path.abspath(SERVICE_ACCOUNT_FILE)
-    logger.info(f"Checking for service account file at: {abs_path}")
+    print(f"DEBUG: Checking for service account file at: {abs_path}", flush=True)
     
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        logger.error(f"Service account file NOT found at: {abs_path}")
+        print(f"DEBUG: Service account file NOT found at: {abs_path}", flush=True)
         # Try to list files in current directory to help debug
-        logger.info(f"Current working directory: {os.getcwd()}")
-        logger.info(f"Files in current directory: {os.listdir('.')}")
+        print(f"DEBUG: Current working directory: {os.getcwd()}", flush=True)
+        print(f"DEBUG: Files in current directory: {os.listdir('.')}", flush=True)
         return None
     
     try:
-        logger.info("Attempting to authenticate with Google Drive API...")
+        print("DEBUG: Attempting to authenticate with Google Drive API...", flush=True)
         creds = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-        logger.info("Authentication credentials created successfully.")
+        print("DEBUG: Authentication credentials created successfully.", flush=True)
         return creds
     except Exception as e:
-        logger.error(f"Authentication failed: {e}")
+        print(f"DEBUG: Authentication failed: {e}", flush=True)
         return None
 
 def upload_file(file_path, file_name, mime_type=None):
@@ -38,18 +38,18 @@ def upload_file(file_path, file_name, mime_type=None):
     Uploads a file to Google Drive and returns the direct download URL.
     Updates existing file if found by name, otherwise creates new.
     """
-    logger.info(f"Starting upload process for {file_name}...")
+    print(f"DEBUG: Starting upload process for {file_name}...", flush=True)
     creds = authenticate()
     if not creds:
-        logger.error("Upload aborted: No credentials available.")
+        print("DEBUG: Upload aborted: No credentials available.", flush=True)
         return None
 
     try:
-        logger.info("Building Drive service...")
+        print("DEBUG: Building Drive service...", flush=True)
         service = build('drive', 'v3', credentials=creds)
 
         # Check if file exists
-        logger.info(f"Checking if file '{file_name}' already exists in Drive...")
+        print(f"DEBUG: Checking if file '{file_name}' already exists in Drive...", flush=True)
         query = f"name = '{file_name}' and trashed = false"
         results = service.files().list(q=query, fields="files(id, name)").execute()
         files = results.get('files', [])
@@ -61,26 +61,26 @@ def upload_file(file_path, file_name, mime_type=None):
         if files:
             # Update existing file
             file_id = files[0]['id']
-            logger.info(f"Found existing file: {file_name} (ID: {file_id}). Updating...")
+            print(f"DEBUG: Found existing file: {file_name} (ID: {file_id}). Updating...", flush=True)
             updated_file = service.files().update(
                 fileId=file_id,
                 media_body=media
             ).execute()
-            logger.info(f"File updated successfully. ID: {updated_file.get('id')}")
+            print(f"DEBUG: File updated successfully. ID: {updated_file.get('id')}", flush=True)
         else:
             # Create new file
-            logger.info(f"File '{file_name}' not found. Creating new file...")
+            print(f"DEBUG: File '{file_name}' not found. Creating new file...", flush=True)
             created_file = service.files().create(
                 body=file_metadata,
                 media_body=media,
                 fields='id'
             ).execute()
             file_id = created_file.get('id')
-            logger.info(f"File created successfully. ID: {file_id}")
+            print(f"DEBUG: File created successfully. ID: {file_id}", flush=True)
 
         if file_id:
             # Make file public
-            logger.info(f"Setting public permissions for file ID: {file_id}...")
+            print(f"DEBUG: Setting public permissions for file ID: {file_id}...", flush=True)
             permission = {
                 'type': 'anyone',
                 'role': 'reader',
@@ -89,13 +89,13 @@ def upload_file(file_path, file_name, mime_type=None):
                 fileId=file_id,
                 body=permission,
             ).execute()
-            logger.info("Public permissions set.")
+            print("DEBUG: Public permissions set.", flush=True)
 
             # Construct direct download link
             direct_link = f"https://drive.google.com/uc?export=download&id={file_id}"
-            logger.info(f"Upload complete. Direct Link: {direct_link}")
+            print(f"DEBUG: Upload complete. Direct Link: {direct_link}", flush=True)
             return direct_link
             
     except Exception as e:
-        logger.error(f"Google Drive upload failed with error: {e}", exc_info=True)
+        print(f"DEBUG: Google Drive upload failed with error: {e}", flush=True)
         return None
