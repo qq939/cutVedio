@@ -243,11 +243,24 @@ def convert_and_upload_character(source_path):
         logger.error(f"Character conversion/upload error: {e}")
         return None
 
+import re
+
 @app.route('/process', methods=['POST'])
 def process_video():
-    video_url = request.form.get('url')
-    if not video_url:
-        return jsonify({'error': 'No URL provided'}), 400
+    raw_input = request.form.get('url')
+    if not raw_input:
+        return jsonify({'error': 'No input provided'}), 400
+
+    # Extract URL from input text using regex
+    # Matches http:// or https:// followed by non-whitespace characters
+    url_match = re.search(r'(https?://[^\s]+)', raw_input)
+    if url_match:
+        video_url = url_match.group(1)
+        logger.info(f"Extracted URL: {video_url} from input: {raw_input}")
+    else:
+        # If no URL found, assume the input is the URL itself (fallback)
+        video_url = raw_input.strip()
+        logger.warning(f"No URL pattern found, using raw input: {video_url}")
 
     downloaded_video_path = None
     try:
