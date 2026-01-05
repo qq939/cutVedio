@@ -13,9 +13,14 @@ SERVICE_ACCOUNT_FILE = 'service_account.json'
 
 def authenticate():
     """Authenticates using service account."""
-    logger.info(f"Checking for service account file at: {os.path.abspath(SERVICE_ACCOUNT_FILE)}")
+    abs_path = os.path.abspath(SERVICE_ACCOUNT_FILE)
+    logger.info(f"Checking for service account file at: {abs_path}")
+    
     if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        logger.error(f"Service account file not found: {SERVICE_ACCOUNT_FILE}")
+        logger.error(f"Service account file NOT found at: {abs_path}")
+        # Try to list files in current directory to help debug
+        logger.info(f"Current working directory: {os.getcwd()}")
+        logger.info(f"Files in current directory: {os.listdir('.')}")
         return None
     
     try:
