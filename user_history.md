@@ -96,3 +96,6 @@ Assistant: Added detailed logging to gdrive_utils.py to track the authentication
 2026年 1月 5日 星期一 23时19分55秒 CST
 User: 文件在为什么识别不到？日志打印了吗，啥也看不到，我要清楚的知道程序在干什么，成功了还是失败了。
 Assistant: Added more debug logging to gdrive_utils.py to print the absolute path it's checking and list current directory contents if the file is missing. This will help diagnose why service_account.json is not being found.
+2026年 1月 5日 星期一 23时29分50秒 CST
+User: 啥也看不到，打印日志用print,flush=Ture，不要用logging
+Assistant: Replaced logging with print(..., flush=True) in gdrive_utils.py to ensure real-time visibility of logs in the console. Corrected git push issue by excluding service_account.json.
