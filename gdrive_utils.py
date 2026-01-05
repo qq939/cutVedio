@@ -102,4 +102,7 @@ def upload_file(file_path, file_name, mime_type=None):
             
     except Exception as e:
         print(f"DEBUG: Google Drive upload failed with error: {e}", flush=True)
+        if "storageQuotaExceeded" in str(e):
+             print(f"DEBUG: Storage quota exceeded for folder {TARGET_FOLDER_ID} (https://drive.google.com/drive/folders/{TARGET_FOLDER_ID}).", flush=True)
+             print("DEBUG: Please clean up the Google Drive or the target folder.", flush=True)
         return None
