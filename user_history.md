@@ -75,3 +75,6 @@ Assistant: Installed python-dotenv, added RUNWAYML_API_SECRET to .env, and updat
 2026年 1月 5日 星期一 05时50分16秒 CST
 User: Terminal#230-234
 Assistant: Fixed NameError in video_change_face_demo.py by converting dictionary syntax to Python keyword arguments. Reverted URLs to https as required by RunwayML validation.
+2026年 1月 5日 星期一 19时26分48秒 CST
+User: Terminal#277-290 网络不通，那我们用google drive吧
+Assistant: Updated video_change_face_demo.py to use Google Drive placeholder links as the previous OBS links were inaccessible. Added a TODO to replace them with actual direct links.

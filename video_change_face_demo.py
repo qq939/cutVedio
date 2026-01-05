@@ -1,20 +1,21 @@
 import time
 from dotenv import load_dotenv
 from runwayml import RunwayML
+import os
 
 load_dotenv()
 
-client = RunwayML()
+client = RunwayML(api_key=os.getenv("RUNWAYML_API_KEY"))
 
 task = client.character_performance.create(
   model="act_two",
   character={
     "type": "image",
-    "uri": "https://obs.dimond.top/character.png"
+    "uri": "https://lh3.googleusercontent.com/d/1Xy_QyXz_Xy_QyXz_Xy_QyXz_Xy_QyXz" # Replace with your actual Google Drive direct link for character.png
   },
   reference={
     "type": "video",
-    "uri": "https://obs.dimond.top/reference.mp4"
+    "uri": "https://lh3.googleusercontent.com/d/1Xy_QyXz_Xy_QyXz_Xy_QyXz_Xy_QyXz" # Replace with your actual Google Drive direct link for reference.mp4
   },
   seed=3938610573,
   # bodyControl might not be a valid kwarg if it expects snake_case, 
