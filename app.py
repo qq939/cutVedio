@@ -10,6 +10,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
+import gdrive_utils
 
 load_dotenv()
 
@@ -212,14 +213,14 @@ def upload_to_obs(file_path, url):
         logger.error(f"Upload error: {e}")
         return False
 
-def convert_and_upload_character(source_path, target_url):
+def convert_and_upload_character(source_path):
     """
-    Convert image to png and upload.
+    Convert image to png and upload to Google Drive.
     """
     try:
         if not os.path.exists(source_path):
              logger.error(f"Source file not found: {source_path}")
-             return False
+             return None
              
         # Load and convert image
         img = Image.open(source_path)
@@ -230,17 +231,17 @@ def convert_and_upload_character(source_path, target_url):
         temp_png = os.path.join(BASE_DIR, 'tmp', 'character.png')
         img.save(temp_png, 'PNG')
         
-        # Upload
-        success = upload_to_obs(temp_png, target_url)
+        # Upload to Google Drive
+        gdrive_url = gdrive_utils.upload_file(temp_png, 'character.png', mime_type='image/png')
         
         # Clean up
         if os.path.exists(temp_png):
             os.remove(temp_png)
             
-        return success
+        return gdrive_url
     except Exception as e:
         logger.error(f"Character conversion/upload error: {e}")
-        return False
+        return None
 
 @app.route('/process', methods=['POST'])
 def process_video():
@@ -250,9 +251,10 @@ def process_video():
 
     downloaded_video_path = None
     try:
-        # 1. Convert and upload character image (face/lulu.webp -> CHARACTER_UPLOAD_URL)
+        # 1. Convert and upload character image (face/lulu.webp -> Google Drive)
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        convert_and_upload_character(character_path, CHARACTER_UPLOAD_URL)
+        character_gdrive_url = convert_and_upload_character(character_path)
+        logger.info(f"Character uploaded to: {character_gdrive_url}")
         
         # Clear previous frames
         for f in os.listdir(IMAGE_FOLDER):
@@ -269,8 +271,10 @@ def process_video():
         # Download video using yt-dlp to VIDEO_FOLDER
         downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
         
-        # 2. Upload downloaded video to VIDEO_UPLOAD_URL
-        upload_to_obs(downloaded_video_path, VIDEO_UPLOAD_URL)
+        # 2. Upload downloaded video to Google Drive
+        video_filename = os.path.basename(downloaded_video_path)
+        video_gdrive_url = gdrive_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
+        logger.info(f"Video uploaded to: {video_gdrive_url}")
         
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
@@ -308,13 +312,17 @@ def process_video():
         cap.release()
         
         # Do not delete the downloaded video file, we want to display it
-        video_filename = os.path.basename(downloaded_video_path)
+        # video_filename is already defined above
         
         return jsonify({
-            'message': f'Successfully extracted {saved_count} frames.',
+            'message': f'Successfully extracted {saved_count} frames. Uploaded to GDrive.',
             'images': saved_files,
             'video_url': f"/video/{video_filename}",
-            'original_url': video_url
+            'original_url': video_url,
+            'gdrive_urls': {
+                'character': character_gdrive_url,
+                'video': video_gdrive_url
+            }
         })
 
     except Exception as e:
