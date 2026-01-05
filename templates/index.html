@@ -283,7 +283,7 @@
             const videoContainer = document.getElementById('videoContainer');
             const videoPlayer = document.getElementById('videoPlayer');
             const originalLink = document.getElementById('originalLink');
-            const gdriveContainer = document.getElementById('gdriveContainer');
+            const r2Container = document.getElementById('r2Container');
             
             if (!videoUrl) {
                 alert('请输入视频 URL');
@@ -294,7 +294,7 @@
             statusDiv.textContent = '正在处理中，请稍候...';
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
-            gdriveContainer.style.display = 'none';
+            r2Container.style.display = 'none';
             videoPlayer.src = '';
             submitBtn.disabled = true;
 
@@ -333,39 +333,23 @@
                         originalLink.textContent = data.original_url;
                     }
 
-                    // Display Google Drive Links (if any)
-                    const gdriveContainer = document.getElementById('gdriveContainer');
+                    // Display R2 Links
                     const characterLink = document.getElementById('characterLink');
                     const videoLink = document.getElementById('videoLink');
-                    const gdriveWarning = document.getElementById('gdriveWarning');
-
-                    if (data.gdrive_urls && (data.gdrive_urls.character || data.gdrive_urls.video)) {
-                        gdriveContainer.style.display = 'block';
-                        gdriveWarning.style.display = 'none';
-                        
-                        if (data.gdrive_urls.character) {
-                            characterLink.href = data.gdrive_urls.character;
-                            characterLink.textContent = '角色图片 (character.png)';
+                    
+                    if (data.upload_urls) {
+                        if (data.upload_urls.character) {
+                            characterLink.href = data.upload_urls.character;
+                            characterLink.textContent = '角色图片';
                             characterLink.style.display = 'inline-block';
-                        } else {
-                            characterLink.style.display = 'none';
                         }
-
-                        if (data.gdrive_urls.video) {
-                            videoLink.href = data.gdrive_urls.video;
-                            videoLink.textContent = '处理视频 (reference.mp4)';
+                        if (data.upload_urls.video) {
+                            videoLink.href = data.upload_urls.video;
+                            videoLink.textContent = '处理视频';
                             videoLink.style.display = 'inline-block';
-                        } else {
-                            videoLink.style.display = 'none';
                         }
-                    } else {
-                        // Show warning if upload failed (likely due to missing credentials)
-                        gdriveContainer.style.display = 'block';
-                        gdriveWarning.style.display = 'block';
-                        characterLink.style.display = 'none';
-                        videoLink.style.display = 'none';
+                        r2Container.style.display = 'block';
                     }
-
                 } else {
                     statusDiv.textContent = '错误: ' + data.error;
                 }
