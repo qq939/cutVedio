@@ -84,3 +84,6 @@ Assistant: Added google-api-python-client dependencies. Created gdrive_utils.py 
 2026年 1月 5日 星期一 20时08分13秒 CST
 User: 优化一下自动过滤出链接，如果粘贴的内容是这样也能够找到链接： 0.20 猫生已无憾～  https://v.douyin.com/vx7kJVQNNY4/  复制此链接，打开抖音搜索，直接观看视频！ D@h.BT IiP:/ 11/01
 Assistant: Updated app.py to use regex for extracting URLs from user input, allowing for mixed text and URL content. Verified success.
+2026年 1月 5日 星期一 20时16分17秒 CST
+User: 我没有看到存入google drive里。也没看到services_account.json，也没看到前端显示的gdrive_urls。如果不成功需要提示，如果没有登陆凭证需要引导我获取。
+Assistant: Updated frontend to display Google Drive upload status. Added a warning message with instructions if service_account.json is missing or upload fails. Modified app.py to return upload status in API response.
