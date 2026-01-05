@@ -90,3 +90,6 @@ Assistant: Updated frontend to display Google Drive upload status. Added a warni
 2026年 1月 5日 星期一 21时21分21秒 CST
 User: 请在这段文字之后让我上传json密钥： Google Drive 上传状态 注意：  未检测到 Google Drive 凭证 (service_account.json) 或上传失败。 请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。 前往 Google Cloud Console 创建
 Assistant: Added a file upload form in index.html to allow users to upload their Google service account JSON key directly from the browser. Implemented /upload_key endpoint in app.py to handle the file upload and save it as service_account.json.
+2026年 1月 5日 星期一 23时10分31秒 CST
+User: 在控制台打印更多信息让我看到进展，因为我上传了密钥文件，但是图片和视频并没有上传到google drive，我要看到进展。
+Assistant: Added detailed logging to gdrive_utils.py to track the authentication and upload process. Note: Attempted to push service_account.json by mistake but corrected it immediately. The file is now excluded from git.
