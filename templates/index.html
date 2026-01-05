@@ -124,6 +124,15 @@
                 <strong>注意：</strong> 未检测到 Google Drive 凭证 (service_account.json) 或上传失败。
                 <br>请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。
                 <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">前往 Google Cloud Console 创建</a>
+                
+                <div style="margin-top: 10px; padding: 10px; border: 1px dashed #ccc; background-color: #fff;">
+                    <strong>上传 Service Account Key (JSON)</strong>
+                    <form id="uploadKeyForm" style="margin-top: 5px; display: flex; gap: 10px; align-items: center;">
+                        <input type="file" id="keyFile" accept=".json" style="font-size: 14px;">
+                        <button type="button" onclick="uploadKey()" style="padding: 5px 10px; font-size: 14px;">上传</button>
+                    </form>
+                    <div id="uploadStatus" style="margin-top: 5px; font-size: 12px;"></div>
+                </div>
             </div>
             <div style="display: flex; gap: 15px;">
                 <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
@@ -133,6 +142,44 @@
     </div>
 
     <script>
+        async function uploadKey() {
+            const fileInput = document.getElementById('keyFile');
+            const statusDiv = document.getElementById('uploadStatus');
+            
+            if (fileInput.files.length === 0) {
+                statusDiv.textContent = '请选择文件';
+                statusDiv.style.color = 'red';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('key_file', file);
+
+            statusDiv.textContent = '上传中...';
+            statusDiv.style.color = '#666';
+
+            try {
+                const response = await fetch('/upload_key', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.textContent = '上传成功！请重新提交视频处理任务。';
+                    statusDiv.style.color = 'green';
+                } else {
+                    statusDiv.textContent = '上传失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (error) {
+                statusDiv.textContent = '请求错误: ' + error.message;
+                statusDiv.style.color = 'red';
+            }
+        }
+
         async function processVideo() {
             const videoUrl = document.getElementById('videoUrl').value;
             const statusDiv = document.getElementById('status');

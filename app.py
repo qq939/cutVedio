@@ -245,6 +245,28 @@ def convert_and_upload_character(source_path):
 
 import re
 
+@app.route('/upload_key', methods=['POST'])
+def upload_key():
+    if 'key_file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['key_file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    if file and file.filename.endswith('.json'):
+        try:
+            # Save as service_account.json in root directory
+            save_path = os.path.join(BASE_DIR, 'service_account.json')
+            file.save(save_path)
+            logger.info(f"Service account key saved to {save_path}")
+            return jsonify({'message': 'Key uploaded successfully'})
+        except Exception as e:
+            logger.error(f"Failed to save key file: {e}")
+            return jsonify({'error': str(e)}), 500
+    else:
+        return jsonify({'error': 'Invalid file type. Must be .json'}), 400
+
 @app.route('/process', methods=['POST'])
 def process_video():
     raw_input = request.form.get('url')
