@@ -1,6 +1,8 @@
 import os
 import logging
-from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
@@ -9,30 +11,51 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 SCOPES = ['https://www.googleapis.com/auth/drive.file']
-SERVICE_ACCOUNT_FILE = 'service_account.json'
+CREDENTIALS_FILE = 'credentials.json'
+TOKEN_FILE = 'token.json'
 TARGET_FOLDER_ID = '1MvK_nCmctk1KjtXrcDoc1ZKmQEZ5lRwD'
 
 def authenticate():
-    """Authenticates using service account."""
-    abs_path = os.path.abspath(SERVICE_ACCOUNT_FILE)
-    print(f"DEBUG: Checking for service account file at: {abs_path}", flush=True)
+    """Authenticates using OAuth 2.0 (User Account)."""
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    if os.path.exists(TOKEN_FILE):
+        print("DEBUG: Found existing token.json, attempting to load credentials...", flush=True)
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
     
-    if not os.path.exists(SERVICE_ACCOUNT_FILE):
-        print(f"DEBUG: Service account file NOT found at: {abs_path}", flush=True)
-        # Try to list files in current directory to help debug
-        print(f"DEBUG: Current working directory: {os.getcwd()}", flush=True)
-        print(f"DEBUG: Files in current directory: {os.listdir('.')}", flush=True)
-        return None
-    
-    try:
-        print("DEBUG: Attempting to authenticate with Google Drive API...", flush=True)
-        creds = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-        print("DEBUG: Authentication credentials created successfully.", flush=True)
-        return creds
-    except Exception as e:
-        print(f"DEBUG: Authentication failed: {e}", flush=True)
-        return None
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            print("DEBUG: Credentials expired, refreshing...", flush=True)
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"DEBUG: Failed to refresh token: {e}", flush=True)
+                creds = None
+        
+        if not creds:
+            if not os.path.exists(CREDENTIALS_FILE):
+                print(f"DEBUG: Credentials file '{CREDENTIALS_FILE}' not found.", flush=True)
+                return None
+            
+            print("DEBUG: Starting new OAuth flow...", flush=True)
+            try:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    CREDENTIALS_FILE, SCOPES)
+                # run_local_server will open a browser window
+                creds = flow.run_local_server(port=0)
+                
+                # Save the credentials for the next run
+                print("DEBUG: Saving new credentials to token.json...", flush=True)
+                with open(TOKEN_FILE, 'w') as token:
+                    token.write(creds.to_json())
+            except Exception as e:
+                print(f"DEBUG: OAuth flow failed: {e}", flush=True)
+                return None
+                
+    return creds
 
 def upload_file(file_path, file_name, mime_type=None):
     """

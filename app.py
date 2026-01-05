@@ -262,16 +262,37 @@ def upload_key():
         
     if file and file.filename.endswith('.json'):
         try:
-            # Save as service_account.json in root directory
-            save_path = os.path.join(BASE_DIR, 'service_account.json')
+            # Save as credentials.json in root directory
+            save_path = os.path.join(BASE_DIR, 'credentials.json')
             file.save(save_path)
-            logger.info(f"Service account key saved to {save_path}")
-            return jsonify({'message': 'Key uploaded successfully'})
+            logger.info(f"OAuth credentials saved to {save_path}")
+            
+            # Remove old token if new credentials are uploaded
+            token_path = os.path.join(BASE_DIR, 'token.json')
+            if os.path.exists(token_path):
+                os.remove(token_path)
+                logger.info("Removed old token.json")
+                
+            return jsonify({'message': 'Credentials uploaded successfully'})
         except Exception as e:
-            logger.error(f"Failed to save key file: {e}")
+            logger.error(f"Failed to save credentials file: {e}")
             return jsonify({'error': str(e)}), 500
     else:
         return jsonify({'error': 'Invalid file type. Must be .json'}), 400
+
+@app.route('/authorize_gdrive', methods=['POST'])
+def authorize_gdrive():
+    try:
+        # Trigger authentication flow
+        # This will open a browser window on the server machine
+        creds = gdrive_utils.authenticate()
+        if creds and creds.valid:
+            return jsonify({'message': 'Authorization successful!'})
+        else:
+            return jsonify({'error': 'Authorization failed. Check logs.'}), 500
+    except Exception as e:
+        logger.error(f"Authorization error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/manual_upload/character', methods=['POST'])
 def manual_upload_character():

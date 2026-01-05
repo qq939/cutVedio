@@ -121,19 +121,27 @@
         <div id="gdriveContainer" style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; display: none; text-align: left;">
             <h3 style="margin-top: 0; font-size: 16px;">Google Drive 上传状态</h3>
             <div id="gdriveWarning" style="color: #dc3545; margin-bottom: 10px; display: none;">
-                <strong>注意：</strong> 未检测到 Google Drive 凭证 (service_account.json) 或上传失败。
-                <br>请确保已创建 Service Account 并下载 JSON 密钥文件放置在项目根目录下。
-                <br><strong>更重要的是，请确保您已经在 Google Cloud Console 中启用了 "Google Drive API"。</strong>
+                <strong>注意：</strong> 未检测到 Google Drive 凭证 (credentials.json) 或授权失败。
+                <br>请确保已创建 <strong>OAuth 2.0 Client ID (Desktop App)</strong> 并下载 JSON 文件。
+                <br><strong>请确保在 Google Cloud Console 中启用了 "Google Drive API"。</strong>
                 <br><a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank">点击此处启用 Google Drive API</a>
-                <br><a href="https://console.cloud.google.com/iam-admin/serviceaccounts" target="_blank">前往 Service Accounts 管理</a>
+                <br><a href="https://console.cloud.google.com/apis/credentials" target="_blank">前往 Credentials 管理</a>
                 
                 <div style="margin-top: 10px; padding: 10px; border: 1px dashed #ccc; background-color: #fff;">
-                    <strong>上传 Service Account Key (JSON)</strong>
+                    <strong>第一步：上传 OAuth Client ID (credentials.json)</strong>
                     <form id="uploadKeyForm" style="margin-top: 5px; display: flex; gap: 10px; align-items: center;">
                         <input type="file" id="keyFile" accept=".json" style="font-size: 14px;">
                         <button type="button" onclick="uploadKey()" style="padding: 5px 10px; font-size: 14px;">上传</button>
                     </form>
                     <div id="uploadStatus" style="margin-top: 5px; font-size: 12px;"></div>
+                </div>
+
+                <div style="margin-top: 10px; padding: 10px; border: 1px dashed #ccc; background-color: #fff;">
+                    <strong>第二步：连接 Google 账号</strong>
+                    <div style="margin-top: 5px;">
+                        <button type="button" onclick="connectGoogle()" style="padding: 5px 10px; font-size: 14px; background-color: #4285F4;">连接账号 (将在新窗口打开)</button>
+                    </div>
+                    <div id="authStatus" style="margin-top: 5px; font-size: 12px;"></div>
                 </div>
             </div>
 
@@ -181,10 +189,32 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    statusDiv.textContent = '上传成功！请重新提交视频处理任务。';
+                    statusDiv.textContent = '上传成功！请点击下方的"连接账号"按钮。';
                     statusDiv.style.color = 'green';
                 } else {
                     statusDiv.textContent = '上传失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (error) {
+                statusDiv.textContent = '请求错误: ' + error.message;
+                statusDiv.style.color = 'red';
+            }
+        }
+
+        async function connectGoogle() {
+            const statusDiv = document.getElementById('authStatus');
+            statusDiv.textContent = '正在连接... 请留意新打开的浏览器窗口进行授权';
+            statusDiv.style.color = 'blue';
+            
+            try {
+                const response = await fetch('/authorize_gdrive', { method: 'POST' });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    statusDiv.textContent = '授权成功！您现在可以尝试手动推送文件。';
+                    statusDiv.style.color = 'green';
+                } else {
+                    statusDiv.textContent = '授权失败: ' + data.error;
                     statusDiv.style.color = 'red';
                 }
             } catch (error) {
