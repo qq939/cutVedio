@@ -1,4 +1,4 @@
 
-2026年 1月 6日 星期二 10时05分20秒 CST
-User: Terminal#79-101 为什么runway访问不了 `https://runway-video-storage.pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/` ？你测试一下不用token能下载吗？
-Assistant: Identified that the URL format was incorrect (contained redundant bucket name prefix). Corrected `r2_utils.py` to use the valid public domain `https://pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/` and verified public access with `curl`. Updated `video_change_face_demo.py` with the correct default URLs.
+2026年 1月 6日 星期二 10时25分20秒 CST
+User: Terminal#131-151 不用runway了，没积分。我们用阿里云百炼平台。参考这个代码：...
+Assistant: Replaced RunwayML integration with Aliyun Bailian Image-to-Video API (Wan2.1 model). Updated `video_change_face_demo.py` to use `requests` for interacting with DashScope API, including async task polling logic. Modified `app.py` to call the new Aliyun task function.
