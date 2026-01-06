@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 R2_ACCOUNT_ID = '03b4d78e4f6c6c09d71f2ad15aeb85ae'
 R2_BUCKET_NAME = 'runway-video-storage'
 R2_TOKEN = os.getenv('CLOUDFLARER2TOKEN')
+R2_PUBLIC_DOMAIN = 'pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev'
 
 def upload_file(file_path, file_name, mime_type=None):
     """
@@ -40,15 +41,8 @@ def upload_file(file_path, file_name, mime_type=None):
         if response.status_code == 200:
             print(f"DEBUG: R2 upload successful for {file_name}", flush=True)
             result = response.json()
-            # Construct a URL. Since we don't have S3 keys for presigning, we return the S3 endpoint URL.
-            # This URL might not be publicly accessible without a custom domain or worker.
-            # But the user provided this endpoint, so maybe they have a setup.
-            # User provided: https://03b4d78e4f6c6c09d71f2ad15aeb85ae.r2.cloudflarestorage.com/runway-video-storage
-            
-            # Note: The user might have a Public Bucket URL or Custom Domain. 
-            # If not, this URL won't work for public download. 
-            # But we must return *something*.
-            public_url = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com/{R2_BUCKET_NAME}/{file_name}"
+            # Use the Public Bucket URL
+            public_url = f"https://{R2_PUBLIC_DOMAIN}/{file_name}"
             print(f"DEBUG: Uploaded URL: {public_url}", flush=True)
             return public_url
         else:

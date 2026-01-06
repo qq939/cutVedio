@@ -6,7 +6,7 @@ import os
 
 load_dotenv()
 
-def run_runway_task(character_url, video_url):
+def run_runway_task(character_url="https://pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/character.png", video_url="https://pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/video.mp4"):
     print(f"Starting RunwayML task with:")
     print(f"  Character: {character_url}")
     print(f"  Video: {video_url}")
@@ -36,13 +36,11 @@ def run_runway_task(character_url, video_url):
         raise e
 
 if __name__ == "__main__":
+    
     # Allow running from command line with arguments
     if len(sys.argv) >= 3:
         char_url = sys.argv[1]
         vid_url = sys.argv[2]
         run_runway_task(char_url, vid_url)
     else:
-        # Use placeholders or prompt
-        print("Usage: python video_change_face_demo.py <character_url> <video_url>")
-        # Example/Placeholder for testing if needed
-        # run_runway_task("https://example.com/char.png", "https://example.com/vid.mp4")
+        run_runway_task()
