@@ -196,6 +196,18 @@
             });
         }
 
+        function log(message) {
+            const consoleDiv = document.getElementById('debugConsole');
+            if (consoleDiv) {
+                const entry = document.createElement('div');
+                const timeString = new Date().toLocaleTimeString();
+                entry.textContent = `> ${timeString} ${message}`;
+                consoleDiv.appendChild(entry);
+                consoleDiv.scrollTop = consoleDiv.scrollHeight;
+            }
+            console.log(message);
+        }
+
         async function processVideo() {
             const videoUrl = document.getElementById('videoUrl').value;
             const statusDiv = document.getElementById('status');
@@ -213,7 +225,11 @@
 
             // Reset UI
             statusDiv.textContent = '正在处理中，请稍候...';
-            log(`Starting process for: ${videoUrl}`);
+            try {
+                log(`Starting process for: ${videoUrl}`);
+            } catch (e) {
+                console.error("Log failed", e);
+            }
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
             r2Container.style.display = 'none';

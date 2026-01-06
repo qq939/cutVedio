@@ -76,7 +76,9 @@ def get_douyin_video_url(url):
             
             logger.info(f"Navigating to {url}")
             try:
-                page.goto(url, timeout=60000) # Increase timeout to 60 seconds
+                # Use domcontentloaded to return faster, as we don't need full load (images etc)
+                # Reduce timeout to 30s
+                page.goto(url, timeout=30000, wait_until='domcontentloaded') 
             except Exception as e:
                 logger.warning(f"Page navigation timed out or failed: {e}")
                 # Try to continue anyway, maybe it partially loaded
