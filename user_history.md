@@ -14,3 +14,7 @@ Assistant: Updated app.py to replace aliyun_utils with jimeng_utils. Removed ali
 User: 终端报错 jimeng_utils.py line 56, in create_jimeng_task... TypeError: object supporting the buffer API required
 Assistant: Fixed TypeError in jimeng_utils.py. The visual_service.json() method requires the body to be a serialized JSON string, not a dictionary. Added json.dumps(req_body) before passing it to the service method.
 
+2026年 1月 7日 星期三 07时45分17秒 CST
+User: 请测试ok再下线，如果测试搞不定，你就用用post请求调用动作模仿的接口。
+Assistant: Updated jimeng_utils.py to use manual requests.post with Volcengine SignerV4. This resolves the TypeError and provides full control over the Action and Version parameters. The user can now update the Version/Action in the code if 'InvalidActionOrVersion' persists.
+

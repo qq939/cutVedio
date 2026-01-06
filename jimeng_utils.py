@@ -53,7 +53,7 @@ def create_jimeng_task(image_url, video_url):
         
         # Call the API
         # Service.json() returns a JSON string
-        resp_str = visual_service.json(action_name, params, req_body)
+        resp_str = visual_service.json(action_name, params, json.dumps(req_body))
         resp = json.loads(resp_str)
         
         logger.info(f"Jimeng response: {resp}")
@@ -86,7 +86,8 @@ def check_task_status(task_id):
     
     try:
         # Note: Polling action might differ.
-        # Service.json() returns a JSON string
+        # We can also switch this to requests if needed, but VisualService.json might work for GetVisualTask
+        # Assuming GetVisualTask is a standard CV action
         resp_str = visual_service.json("GetVisualTask", dict(), json.dumps(req_body))
         resp = json.loads(resp_str)
         
@@ -97,6 +98,29 @@ def check_task_status(task_id):
             if status == "ProcessSuccess":
                 # Result usually in 'resp_data' which might be a JSON string or dict
                 res_data = data.get("resp_data")
+                if isinstance(res_data, str):
+                    try:
+                        res_data = json.loads(res_data)
+                    except:
+                        pass
+                
+                # Extract video URL
+                # Structure depends on the specific algorithm
+                video_url = None
+                if isinstance(res_data, dict) and "video_url" in res_data:
+                    video_url = res_data["video_url"]
+                
+                return 'SUCCEEDED', video_url
+            elif status == "ProcessFail":
+                return 'FAILED', data.get("fail_reason", "Unknown failure")
+            else:
+                return 'RUNNING', None
+        else:
+            return 'UNKNOWN', str(resp)
+            
+    except Exception as e:
+        logger.error(f"Error checking status: {e}")
+        return 'UNKNOWN', str(e)
                 if isinstance(res_data, str):
                     try:
                         res_data = json.loads(res_data)
