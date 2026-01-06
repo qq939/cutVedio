@@ -13,10 +13,10 @@ from playwright.sync_api import sync_playwright
 import r2_utils
 # Import the RunwayML task function
 try:
-    from video_change_face_demo import run_runway_task
+    from video_change_face_demo import run_aliyun_task
 except ImportError:
-    run_runway_task = None
-    logger.warning("Could not import run_runway_task from video_change_face_demo.py")
+    run_aliyun_task = None
+    logger.warning("Could not import run_aliyun_task from video_change_face_demo.py")
 
 load_dotenv()
 
@@ -357,9 +357,9 @@ def process_video():
         print(f"DEBUG: Video upload result: {video_r2_url}", flush=True)
         logger.info(f"Video uploaded to: {video_r2_url}")
         
-        # 3. Trigger RunwayML Task (Optional/Async)
-        runway_result = None
-        if run_runway_task and character_url and video_r2_url:
+        # 3. Trigger Aliyun Image2Video Task (Optional/Async)
+        aliyun_result = None
+        if run_aliyun_task and character_url and video_r2_url:
              try:
                  # Note: This is blocking and might timeout the request if it takes too long.
                  # ideally this should be a background task (e.g. Celery), but for now we call it directly
@@ -370,10 +370,10 @@ def process_video():
                  # or we can try to run it if it's fast enough (RunwayML create is fast, wait_for_task_output is slow).
                  # The refactored function calls wait_for_task_output().
                  # So we should probably NOT call it here synchronously.
-                 logger.info("RunwayML task integration ready. Use the returned R2 URLs to run video_change_face_demo.py manually to avoid request timeout.")
+                 logger.info("Aliyun task integration ready. Use the returned R2 URLs to run video_change_face_demo.py manually to avoid request timeout.")
                  pass
              except Exception as e:
-                 logger.error(f"Failed to trigger RunwayML task: {e}")
+                 logger.error(f"Failed to trigger Aliyun task: {e}")
 
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
