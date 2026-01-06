@@ -38,12 +38,10 @@ def run_aliyun_task(character_url="http://obs.dimond.top/character.png", video_u
     # We will follow that structure.
     final_data = {
         "model": "wan2.2-animate-mix", 
+        "input": {"image_url": character_url,
+            "video_url": video_url},
         "parameters": {
             "mode": "wan-std",
-            "image_url": character_url,
-            "video_url": video_url,
-            "resolution": "1080p",
-            "duration": 10
         }
     }
     
