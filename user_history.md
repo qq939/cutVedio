@@ -10,3 +10,7 @@ Assistant: Created jimeng_utils.py using Volcengine SDK (MotionMimic). Integrate
 User: app 用jimeng_utils不要用aliyun_utils
 Assistant: Updated app.py to replace aliyun_utils with jimeng_utils. Removed aliyun_utils import. Updated api_generate_video and api_task_status to use Jimeng API and handle video download to tmp/ultraVideo.
 
+2026年 1月 7日 星期三 07时34分25秒 CST
+User: 终端报错 jimeng_utils.py line 56, in create_jimeng_task... TypeError: object supporting the buffer API required
+Assistant: Fixed TypeError in jimeng_utils.py. The visual_service.json() method requires the body to be a serialized JSON string, not a dictionary. Added json.dumps(req_body) before passing it to the service method.
+

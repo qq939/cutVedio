@@ -87,7 +87,7 @@ def check_task_status(task_id):
     try:
         # Note: Polling action might differ.
         # Service.json() returns a JSON string
-        resp_str = visual_service.json("GetVisualTask", dict(), req_body)
+        resp_str = visual_service.json("GetVisualTask", dict(), json.dumps(req_body))
         resp = json.loads(resp_str)
         
         if resp and "data" in resp:
