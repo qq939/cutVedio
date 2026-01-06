@@ -10,7 +10,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
-import gdrive_utils
+import r2_utils
 # Import the RunwayML task function
 try:
     from video_change_face_demo import run_runway_task
@@ -225,7 +225,7 @@ def upload_to_obs(file_path, url):
 
 def convert_and_upload_character(source_path):
     """
-    Convert image to png and upload to Google Drive.
+    Convert image to png and upload to Cloudflare R2.
     """
     try:
         if not os.path.exists(source_path):
@@ -241,71 +241,28 @@ def convert_and_upload_character(source_path):
         temp_png = os.path.join(BASE_DIR, 'tmp', 'character.png')
         img.save(temp_png, 'PNG')
         
-        # Upload to Google Drive
-        gdrive_url = gdrive_utils.upload_file(temp_png, 'character.png', mime_type='image/png')
+        # Upload to R2
+        r2_url = r2_utils.upload_file(temp_png, 'character.png', mime_type='image/png')
         
         # Clean up
         if os.path.exists(temp_png):
             os.remove(temp_png)
             
-        return gdrive_url
+        return r2_url
     except Exception as e:
         logger.error(f"Character conversion/upload error: {e}")
         return None
 
 import re
 
-@app.route('/upload_key', methods=['POST'])
-def upload_key():
-    if 'key_file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = request.files['key_file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-        
-    if file and file.filename.endswith('.json'):
-        try:
-            # Save as credentials.json in root directory
-            save_path = os.path.join(BASE_DIR, 'credentials.json')
-            file.save(save_path)
-            logger.info(f"OAuth credentials saved to {save_path}")
-            
-            # Remove old token if new credentials are uploaded
-            token_path = os.path.join(BASE_DIR, 'token.json')
-            if os.path.exists(token_path):
-                os.remove(token_path)
-                logger.info("Removed old token.json")
-                
-            return jsonify({'message': 'Credentials uploaded successfully'})
-        except Exception as e:
-            logger.error(f"Failed to save credentials file: {e}")
-            return jsonify({'error': str(e)}), 500
-    else:
-        return jsonify({'error': 'Invalid file type. Must be .json'}), 400
-
-@app.route('/authorize_gdrive', methods=['POST'])
-def authorize_gdrive():
-    try:
-        # Trigger authentication flow
-        # This will open a browser window on the server machine
-        creds = gdrive_utils.authenticate()
-        if creds and creds.valid:
-            return jsonify({'message': 'Authorization successful!'})
-        else:
-            return jsonify({'error': 'Authorization failed. Check logs.'}), 500
-    except Exception as e:
-        logger.error(f"Authorization error: {e}")
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/manual_upload/character', methods=['POST'])
 def manual_upload_character():
     try:
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        gdrive_url = convert_and_upload_character(character_path)
+        r2_url = convert_and_upload_character(character_path)
         
-        if gdrive_url:
-            return jsonify({'message': 'Character uploaded successfully', 'url': gdrive_url})
+        if r2_url:
+            return jsonify({'message': 'Character uploaded successfully', 'url': r2_url})
         else:
             return jsonify({'error': 'Failed to upload character. Check logs.'}), 500
     except Exception as e:
@@ -331,10 +288,10 @@ def manual_upload_video():
         video_filename = os.path.basename(latest_video)
         logger.info(f"Manual upload: Found video {video_filename}")
         
-        video_gdrive_url = gdrive_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
+        video_r2_url = r2_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
         
-        if video_gdrive_url:
-            return jsonify({'message': 'Video uploaded successfully', 'url': video_gdrive_url})
+        if video_r2_url:
+            return jsonify({'message': 'Video uploaded successfully', 'url': video_r2_url})
         else:
              return jsonify({'error': 'Failed to upload video. Check logs.'}), 500
              
@@ -391,16 +348,16 @@ def process_video():
         downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
         print(f"DEBUG: Video downloaded to {downloaded_video_path}", flush=True)
         
-        # 2. Upload downloaded video to Google Drive
+        # 2. Upload downloaded video to Cloudflare R2
         video_filename = os.path.basename(downloaded_video_path)
-        print(f"DEBUG: Starting video upload to Google Drive ({video_filename})...", flush=True)
-        video_gdrive_url = gdrive_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
-        print(f"DEBUG: Video upload result: {video_gdrive_url}", flush=True)
-        logger.info(f"Video uploaded to: {video_gdrive_url}")
+        print(f"DEBUG: Starting video upload to R2 ({video_filename})...", flush=True)
+        video_r2_url = r2_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
+        print(f"DEBUG: Video upload result: {video_r2_url}", flush=True)
+        logger.info(f"Video uploaded to: {video_r2_url}")
         
         # 3. Trigger RunwayML Task (Optional/Async)
         runway_result = None
-        if run_runway_task and character_gdrive_url and video_gdrive_url:
+        if run_runway_task and character_url and video_r2_url:
              try:
                  # Note: This is blocking and might timeout the request if it takes too long.
                  # ideally this should be a background task (e.g. Celery), but for now we call it directly
@@ -411,7 +368,7 @@ def process_video():
                  # or we can try to run it if it's fast enough (RunwayML create is fast, wait_for_task_output is slow).
                  # The refactored function calls wait_for_task_output().
                  # So we should probably NOT call it here synchronously.
-                 logger.info("RunwayML task integration ready. Use the returned GDrive URLs to run video_change_face_demo.py manually to avoid request timeout.")
+                 logger.info("RunwayML task integration ready. Use the returned R2 URLs to run video_change_face_demo.py manually to avoid request timeout.")
                  pass
              except Exception as e:
                  logger.error(f"Failed to trigger RunwayML task: {e}")
@@ -460,8 +417,8 @@ def process_video():
             'video_url': f"/video/{video_filename}",
             'original_url': video_url,
             'upload_urls': {
-                'character': character_gdrive_url,
-                'video': video_gdrive_url
+                'character': character_url,
+                'video': video_r2_url
             }
         })
 

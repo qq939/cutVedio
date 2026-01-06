@@ -99,6 +99,6 @@ Assistant: Added more debug logging to gdrive_utils.py to print the absolute pat
 2026年 1月 5日 星期一 23时29分50秒 CST
 User: 啥也看不到，打印日志用print,flush=Ture，不要用logging
 Assistant: Replaced logging with print(..., flush=True) in gdrive_utils.py to ensure real-time visibility of logs in the console. Corrected git push issue by excluding service_account.json.
-2026年 1月 5日 星期一 23时38分41秒 CST
-User: Terminal#57-66
-Assistant: Verified via `test_gdrive.py` that the service account is authenticated but lacks authorization (Error 403: accessNotConfigured). The Google Drive API is NOT enabled in the Google Cloud Console. Updated `video_change_face_demo.py` to accept dynamic URLs and `app.py` to prepare for integration. Added `service_account.json` to `.gitignore` and securely pushed changes.
+2026年 1月 6日 星期二 09时35分20秒 CST
+User: Terminal#78-94 ？google drive？
+Assistant: Removed all traces of Google Drive integration. Replaced `gdrive_utils` with `r2_utils` in `app.py`. Updated `templates/index.html` to remove Google Drive UI elements. Deleted `gdrive_utils.py` and cleaned up `requirements.txt`.
