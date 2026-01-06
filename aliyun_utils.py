@@ -21,6 +21,7 @@ def create_task(character_url, video_url):
     """
     if not ALIYUN_API_KEY:
         logger.error("ALIYUN_API_KEY not found in environment variables.")
+        print("ALIYUN_API_KEY not found in environment variables.",flush=True)
         return None
 
     headers = {
@@ -32,17 +33,16 @@ def create_task(character_url, video_url):
     # Using the specific structure requested by user
     payload = {
         "model": "wan2.2-animate-mix", 
+        "input": {"image_url": character_url,
+            "video_url": video_url},
         "parameters": {
             "mode": "wan-std",
-            "image_url": character_url,
-            "video_url": video_url,
-            "resolution": "1080p",
-            "duration": 10
         }
     }
     
     try:
         logger.info(f"Submitting Aliyun task with char={character_url}, video={video_url}")
+        print(f"Submitting Aliyun task with char={character_url}, video={video_url}",flush=True)
         response = requests.post(DASH_SCOPE_URL, headers=headers, json=payload)
         
         if response.status_code == 200:
@@ -50,16 +50,20 @@ def create_task(character_url, video_url):
             if 'output' in result and 'task_id' in result['output']:
                 task_id = result['output']['task_id']
                 logger.info(f"Aliyun task created: {task_id}")
+                print(f"Aliyun task created: {task_id}",flush=True)
                 return task_id
             else:
                 logger.error(f"Unexpected response structure: {result}")
+                print(f"Unexpected response structure: {result}",flush=True)
                 return None
         else:
             logger.error(f"Task creation failed: {response.status_code} - {response.text}")
+            print(f"Task creation failed: {response.status_code} - {response.text}",flush=True)
             return None
             
     except Exception as e:
         logger.error(f"Aliyun task submission error: {e}")
+        print(f"Aliyun task submission error: {e}",flush=True)
         return None
 
 def check_task_status(task_id):
@@ -93,8 +97,10 @@ def check_task_status(task_id):
                 return status, None
         else:
             logger.error(f"Check status failed: {response.status_code}")
+            print(f"Check status failed: {response.status_code}",flush=True)
             return 'UNKNOWN', f"HTTP {response.status_code}"
             
     except Exception as e:
         logger.error(f"Error checking status: {e}")
+        print(f"Error checking status: {e}",flush=True)
         return 'UNKNOWN', str(e)
