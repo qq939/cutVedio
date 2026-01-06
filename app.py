@@ -10,7 +10,7 @@ from PIL import Image
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
-import r2_utils
+import obs_utils
 # Import the RunwayML task function
 try:
     from video_change_face_demo import run_aliyun_task
@@ -227,7 +227,7 @@ def upload_to_obs(file_path, url):
 
 def convert_and_upload_character(source_path):
     """
-    Convert image to png and upload to Cloudflare R2.
+    Convert image to png and upload to OBS.
     """
     try:
         if not os.path.exists(source_path):
@@ -243,14 +243,14 @@ def convert_and_upload_character(source_path):
         temp_png = os.path.join(BASE_DIR, 'tmp', 'character.png')
         img.save(temp_png, 'PNG')
         
-        # Upload to R2
-        r2_url = r2_utils.upload_file(temp_png, 'character.png', mime_type='image/png')
+        # Upload to OBS
+        obs_url = obs_utils.upload_file(temp_png, 'character.png', mime_type='image/png')
         
         # Clean up
         if os.path.exists(temp_png):
             os.remove(temp_png)
             
-        return r2_url
+        return obs_url
     except Exception as e:
         logger.error(f"Character conversion/upload error: {e}")
         return None
@@ -261,10 +261,10 @@ import re
 def manual_upload_character():
     try:
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        r2_url = convert_and_upload_character(character_path)
+        obs_url = convert_and_upload_character(character_path)
         
-        if r2_url:
-            return jsonify({'message': 'Character uploaded successfully', 'url': r2_url})
+        if obs_url:
+            return jsonify({'message': 'Character uploaded successfully', 'url': obs_url})
         else:
             return jsonify({'error': 'Failed to upload character. Check logs.'}), 500
     except Exception as e:
@@ -290,10 +290,10 @@ def manual_upload_video():
         video_filename = os.path.basename(latest_video)
         logger.info(f"Manual upload: Found video {video_filename}")
         
-        video_r2_url = r2_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
+        video_obs_url = obs_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
         
-        if video_r2_url:
-            return jsonify({'message': 'Video uploaded successfully', 'url': video_r2_url})
+        if video_obs_url:
+            return jsonify({'message': 'Video uploaded successfully', 'url': video_obs_url})
         else:
              return jsonify({'error': 'Failed to upload video. Check logs.'}), 500
              
@@ -324,7 +324,7 @@ def process_video():
 
     downloaded_video_path = None
     try:
-        # 1. Convert and upload character image (face/lulu.webp -> R2)
+        # 1. Convert and upload character image (face/lulu.webp -> OBS)
         print("DEBUG: Starting character upload...", flush=True)
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
         character_url = convert_and_upload_character(character_path)
@@ -350,16 +350,16 @@ def process_video():
         downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
         print(f"DEBUG: Video downloaded to {downloaded_video_path}", flush=True)
         
-        # 2. Upload downloaded video to Cloudflare R2
+        # 2. Upload downloaded video to OBS
         video_filename = os.path.basename(downloaded_video_path)
-        print(f"DEBUG: Starting video upload to R2 ({video_filename})...", flush=True)
-        video_r2_url = r2_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
-        print(f"DEBUG: Video upload result: {video_r2_url}", flush=True)
-        logger.info(f"Video uploaded to: {video_r2_url}")
+        print(f"DEBUG: Starting video upload to OBS ({video_filename})...", flush=True)
+        video_obs_url = obs_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
+        print(f"DEBUG: Video upload result: {video_obs_url}", flush=True)
+        logger.info(f"Video uploaded to: {video_obs_url}")
         
         # 3. Trigger Aliyun Image2Video Task (Optional/Async)
         aliyun_result = None
-        if run_aliyun_task and character_url and video_r2_url:
+        if run_aliyun_task and character_url and video_obs_url:
              try:
                  # Note: This is blocking and might timeout the request if it takes too long.
                  # ideally this should be a background task (e.g. Celery), but for now we call it directly
@@ -370,7 +370,7 @@ def process_video():
                  # or we can try to run it if it's fast enough (RunwayML create is fast, wait_for_task_output is slow).
                  # The refactored function calls wait_for_task_output().
                  # So we should probably NOT call it here synchronously.
-                 logger.info("Aliyun task integration ready. Use the returned R2 URLs to run video_change_face_demo.py manually to avoid request timeout.")
+                 logger.info("Aliyun task integration ready. Use the returned OBS URLs to run video_change_face_demo.py manually to avoid request timeout.")
                  pass
              except Exception as e:
                  logger.error(f"Failed to trigger Aliyun task: {e}")
@@ -414,13 +414,13 @@ def process_video():
         # video_filename is already defined above
         
         return jsonify({
-            'message': f'Successfully extracted {saved_count} frames. Uploaded to R2.',
+            'message': f'Successfully extracted {saved_count} frames. Uploaded to OBS.',
             'images': saved_files,
             'video_url': f"/video/{video_filename}",
             'original_url': video_url,
             'upload_urls': {
                 'character': character_url,
-                'video': video_r2_url
+                'video': video_obs_url
             }
         })
 

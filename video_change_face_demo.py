@@ -7,7 +7,7 @@ import os
 
 load_dotenv()
 
-def run_aliyun_task(character_url="https://pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/character.png", video_url="https://pub-7cda69b25fce45de9fb333bcea8937d8.r2.dev/reference.mp4"):
+def run_aliyun_task(character_url="http://obs.dimond.top/character.png", video_url="http://obs.dimond.top/reference.mp4"):
     print(f"Starting Aliyun Image2Video task with:")
     print(f"  Character: {character_url}")
     print(f"  Video: {video_url}")
@@ -24,25 +24,26 @@ def run_aliyun_task(character_url="https://pub-7cda69b25fce45de9fb333bcea8937d8.
         "X-DashScope-Async": "enable" # Enable async processing
     }
     data = {
-        "model": "wan2.1-i2v-turbo", # Updated model name based on user request "wan2.2" might be typo, usually it is wanx or similar. 
+        "model": "wan2.2-animate-mix", # Updated model name based on user request "wan2.2" might be typo, usually it is wanx or similar. 
         # But user provided specific config: "model": "wan2.2-animate-mix"
         # Let's use exactly what user provided.
-        "model": "wan2.1-i2v-plus", # Wait, I should check valid models. 
+        "model": "wan2.2-animate-mix", # Wait, I should check valid models. 
         # User said: "model": "wan2.2-animate-mix". I will use that.
         # Actually, standard DashScope models are like "wanx-v1" etc.
         # User snippet: "model": "wan2.2-animate-mix", "mode": "wan-std"
         # I will trust the user provided snippet first.
     }
     
-    # Based on user's requested structure:
+    # User strictly requested "wan2.2-animate-mix" and specific structure in previous prompt.
+    # We will follow that structure.
     final_data = {
-        "model": "wan2.1-i2v-plus", 
-        "input": {
-            "image_url": character_url
-        },
+        "model": "wan2.2-animate-mix", 
         "parameters": {
-            "duration": 5,
-            "resolution": "1280*720"
+            "mode": "wan-std",
+            "image_url": character_url,
+            "video_url": video_url,
+            "resolution": "1080p",
+            "duration": 10
         }
     }
     
