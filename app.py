@@ -104,6 +104,8 @@ def get_douyin_video_url(url):
                 video_src = page.eval_on_selector('video', 'el => el.src')
                 
                 logger.info(f"Found video src: {video_src}")
+                with open('urls.txt', 'a') as f:
+                    f.write(video_src + "\n")
                 
                 if not video_src:
                     logger.error("Video src is still empty after waiting.")
@@ -315,12 +317,12 @@ def api_generate_video():
         if not character_url or not video_url:
             return jsonify({'error': 'Missing character_url or video_url'}), 400
             
-        task_id = aliyun_utils.create_task(character_url, video_url)
+        task_id = jimeng_utils.create_jimeng_task(character_url, video_url)
         
         if task_id:
             return jsonify({'message': 'Task started', 'task_id': task_id})
         else:
-            return jsonify({'error': 'Failed to start Aliyun task'}), 500
+            return jsonify({'error': 'Failed to start Jimeng task'}), 500
             
     except Exception as e:
         logger.error(f"Generate video API error: {e}")
@@ -329,7 +331,36 @@ def api_generate_video():
 @app.route('/api/task_status/<task_id>', methods=['GET'])
 def api_task_status(task_id):
     try:
-        status, result = aliyun_utils.check_task_status(task_id)
+        status, result = jimeng_utils.check_task_status(task_id)
+        
+        # If succeeded and we have a video URL, download it to ULTRA_VIDEO_FOLDER
+        if status == 'SUCCEEDED' and result and result.startswith('http'):
+            try:
+                # Create a filename based on task_id
+                filename = f"{task_id}.mp4"
+                local_path = os.path.join(ULTRA_VIDEO_FOLDER, filename)
+                
+                # Check if already downloaded
+                if not os.path.exists(local_path):
+                    logger.info(f"Downloading generated video from {result} to {local_path}")
+                    resp = requests.get(result, stream=True)
+                    if resp.status_code == 200:
+                        with open(local_path, 'wb') as f:
+                            for chunk in resp.iter_content(chunk_size=8192):
+                                f.write(chunk)
+                        logger.info("Download completed.")
+                    else:
+                        logger.error(f"Failed to download video: {resp.status_code}")
+                
+                # Return the local URL
+                local_url = f"/ultraVideo/{filename}"
+                return jsonify({'status': status, 'result': local_url})
+                
+            except Exception as download_error:
+                logger.error(f"Error downloading generated video: {download_error}")
+                # Fallback to remote URL if download fails
+                return jsonify({'status': status, 'result': result})
+
         return jsonify({'status': status, 'result': result})
     except Exception as e:
         logger.error(f"Task status API error: {e}")

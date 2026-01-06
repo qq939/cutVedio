@@ -6,3 +6,7 @@ Assistant: Created `aliyun_utils.py` based on `video_change_face_demo.py` to enc
 User: 现在生成视频要使用这个接口 https://www.volcengine.com/docs/85621/1798365?lang=zh ，新建jimeng_utils.py，并且接入到app.py中。
 Assistant: Created jimeng_utils.py using Volcengine SDK (MotionMimic). Integrated it into app.py, replacing Aliyun logic. Configured app.py to download generated videos to tmp/ultraVideo and serve them. Updated index.html UI.
 
+2026年 1月 7日 星期三 07时06分02秒 CST
+User: app 用jimeng_utils不要用aliyun_utils
+Assistant: Updated app.py to replace aliyun_utils with jimeng_utils. Removed aliyun_utils import. Updated api_generate_video and api_task_status to use Jimeng API and handle video download to tmp/ultraVideo.
+

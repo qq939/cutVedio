@@ -2,8 +2,8 @@ import json
 import time
 import os
 import logging
-from volcenginesdkcore.rest import ApiException
-from volcenginesdkvisual.api import VisualService
+from volcengine.visual.VisualService import VisualService
+from volcengine.ApiInfo import ApiInfo
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -18,12 +18,18 @@ visual_service = VisualService()
 visual_service.set_ak(VOLC_ACCESS_KEY)
 visual_service.set_sk(VOLC_SECRET_KEY)
 
+# Manually add the API info for MotionMimic
+# Version 2022-08-31 is commonly used for newer Generative AI features in Volcengine
+visual_service.api_info["MotionMimic"] = ApiInfo("POST", "/", {"Action": "MotionMimic", "Version": "2022-08-31"}, {}, {})
+visual_service.api_info["GetVisualTask"] = ApiInfo("GET", "/", {"Action": "GetVisualTask", "Version": "2022-08-31"}, {}, {})
+
 def create_jimeng_task(image_url, video_url):
     """
     Submits an Action Mimicry task to Volcengine Jimeng API.
     """
     if not VOLC_ACCESS_KEY or not VOLC_SECRET_KEY:
         logger.error("VOLC_ACCESSKEY or VOLC_SECRETKEY not found.")
+        print("VOLC_ACCESSKEY or VOLC_SECRETKEY not found.", flush=True)
         return None
 
     # Action: MotionMimic
@@ -40,14 +46,18 @@ def create_jimeng_task(image_url, video_url):
     
     try:
         logger.info(f"Submitting Jimeng task (Action={action_name})...")
+        print(f"Submitting Jimeng task (Action={action_name})...", flush=True)
         
         # Prepare params
         params = dict()
         
         # Call the API
-        resp = visual_service.common_json_handler(action_name, params, req_body)
+        # Service.json() returns a JSON string
+        resp_str = visual_service.json(action_name, params, req_body)
+        resp = json.loads(resp_str)
         
         logger.info(f"Jimeng response: {resp}")
+        print(f"Jimeng response: {resp}", flush=True)
         
         # Check response structure
         if resp and "data" in resp and "task_id" in resp["data"]:
@@ -58,11 +68,9 @@ def create_jimeng_task(image_url, video_url):
         
         return None
 
-    except ApiException as e:
-        logger.error(f"Volcengine API Exception: {e}")
-        return None
     except Exception as e:
         logger.error(f"Jimeng task submission error: {e}")
+        print(f"Jimeng task submission error: {e}", flush=True)
         return None
 
 def check_task_status(task_id):
@@ -77,7 +85,10 @@ def check_task_status(task_id):
     }
     
     try:
-        resp = visual_service.common_json_handler("GetVisualTask", dict(), req_body)
+        # Note: Polling action might differ.
+        # Service.json() returns a JSON string
+        resp_str = visual_service.json("GetVisualTask", dict(), req_body)
+        resp = json.loads(resp_str)
         
         if resp and "data" in resp:
             data = resp["data"]
@@ -108,4 +119,5 @@ def check_task_status(task_id):
             
     except Exception as e:
         logger.error(f"Error checking status: {e}")
+        print(f"Error checking status: {e}", flush=True)
         return 'UNKNOWN', str(e)
