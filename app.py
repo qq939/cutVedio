@@ -12,6 +12,7 @@ from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 import obs_utils
 import aliyun_utils
+import jimeng_utils
 
 load_dotenv()
 
@@ -25,8 +26,9 @@ CHARACTER_UPLOAD_URL = "http://obs.dimond.top/character.png"
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 IMAGE_FOLDER = os.path.join(BASE_DIR, 'tmp', 'images')
 VIDEO_FOLDER = os.path.join(BASE_DIR, 'tmp', 'video')
+ULTRA_VIDEO_FOLDER = os.path.join(BASE_DIR, 'tmp', 'ultraVideo')
 
-for folder in [IMAGE_FOLDER, VIDEO_FOLDER]:
+for folder in [IMAGE_FOLDER, VIDEO_FOLDER, ULTRA_VIDEO_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -52,6 +54,13 @@ def serve_image(filename):
 @app.route('/video/<path:filename>')
 def serve_video(filename):
     response = send_from_directory(VIDEO_FOLDER, filename)
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    return response
+
+@app.route('/ultraVideo/<path:filename>')
+def serve_ultra_video(filename):
+    response = send_from_directory(ULTRA_VIDEO_FOLDER, filename)
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     return response
