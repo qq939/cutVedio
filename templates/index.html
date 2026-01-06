@@ -104,6 +104,11 @@
             <button id="submitBtn" onclick="processVideo()">提交</button>
         </div>
 
+        <!-- Debug Console -->
+        <div id="debugConsole" style="margin-top: 20px; padding: 10px; background-color: #333; color: #0f0; font-family: monospace; border-radius: 5px; text-align: left; max-height: 200px; overflow-y: auto; font-size: 12px;">
+            <div>> System Ready.</div>
+        </div>
+
         <div id="status"></div>
 
         <div id="gallery" class="gallery"></div>
@@ -292,6 +297,7 @@
 
             // Reset UI
             statusDiv.textContent = '正在处理中，请稍候...';
+            log(`Starting process for: ${videoUrl}`);
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
             r2Container.style.display = 'none';
@@ -302,14 +308,17 @@
                 const formData = new FormData();
                 formData.append('url', videoUrl);
 
+                log('Sending request to server...');
                 const response = await fetch('/process', {
                     method: 'POST',
                     body: formData
                 });
+                log(`Server responded with status: ${response.status}`);
 
                 const data = await response.json();
 
                 if (response.ok) {
+                    log('Process successful.');
                     statusDiv.textContent = data.message;
                     
                     // Display images

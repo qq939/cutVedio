@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 def index():
     return render_template('index.html')
 
+@app.route('/ping', methods=['GET'])
+def ping():
+    return jsonify({'status': 'ok', 'message': 'Server is running'})
+
 @app.route('/images/<path:filename>')
 def serve_image(filename):
     response = send_from_directory(IMAGE_FOLDER, filename)
@@ -361,12 +365,12 @@ def process_video():
 
     downloaded_video_path = None
     try:
-        # 1. Convert and upload character image (face/lulu.webp -> Google Drive)
+        # 1. Convert and upload character image (face/lulu.webp -> R2)
         print("DEBUG: Starting character upload...", flush=True)
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        character_gdrive_url = convert_and_upload_character(character_path)
-        print(f"DEBUG: Character upload result: {character_gdrive_url}", flush=True)
-        logger.info(f"Character uploaded to: {character_gdrive_url}")
+        character_url = convert_and_upload_character(character_path)
+        print(f"DEBUG: Character upload result: {character_url}", flush=True)
+        logger.info(f"Character uploaded to: {character_url}")
         
         # Clear previous frames
         print("DEBUG: Clearing previous frames...", flush=True)
@@ -456,8 +460,8 @@ def process_video():
             'video_url': f"/video/{video_filename}",
             'original_url': video_url,
             'upload_urls': {
-                'character': character_url,
-                'video': video_url
+                'character': character_gdrive_url,
+                'video': video_gdrive_url
             }
         })
 
