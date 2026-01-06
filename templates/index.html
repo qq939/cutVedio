@@ -141,6 +141,19 @@
                 <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
             </div>
         </div>
+
+        <div id="aliyunContainer" style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px; display: none; text-align: left; border: 1px solid #ffeeba;">
+            <h3 style="margin-top: 0; font-size: 16px;">AI 视频生成 (Aliyun Bailian)</h3>
+            <div id="aliyunStatus" style="margin-bottom: 10px; font-size: 14px;">等待开始...</div>
+            <div id="generatedVideoContainer" style="display: none;">
+                <video id="generatedVideoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px; margin-bottom: 10px;">
+                    Your browser does not support the video tag.
+                </video>
+                <div>
+                    <a id="generatedVideoLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">下载生成的视频</a>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -217,6 +230,9 @@
             const videoPlayer = document.getElementById('videoPlayer');
             const originalLink = document.getElementById('originalLink');
             const r2Container = document.getElementById('r2Container');
+            const aliyunContainer = document.getElementById('aliyunContainer');
+            const aliyunStatus = document.getElementById('aliyunStatus');
+            const generatedVideoContainer = document.getElementById('generatedVideoContainer');
             
             if (!videoUrl) {
                 alert('请输入视频 URL');
@@ -233,6 +249,8 @@
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
             r2Container.style.display = 'none';
+            aliyunContainer.style.display = 'none';
+            generatedVideoContainer.style.display = 'none';
             videoPlayer.src = '';
             submitBtn.disabled = true;
 
@@ -274,22 +292,32 @@
                         originalLink.textContent = data.original_url;
                     }
 
-                    // Display R2 Links
+                    // Display OBS Links
                     const characterLink = document.getElementById('characterLink');
                     const videoLink = document.getElementById('videoLink');
                     
                     if (data.upload_urls) {
+                        let charUrl = '';
+                        let vidUrl = '';
+                        
                         if (data.upload_urls.character) {
-                            characterLink.href = data.upload_urls.character;
+                            charUrl = data.upload_urls.character;
+                            characterLink.href = charUrl;
                             characterLink.textContent = '角色图片';
                             characterLink.style.display = 'inline-block';
                         }
                         if (data.upload_urls.video) {
-                            videoLink.href = data.upload_urls.video;
+                            vidUrl = data.upload_urls.video;
+                            videoLink.href = vidUrl;
                             videoLink.textContent = '处理视频';
                             videoLink.style.display = 'inline-block';
                         }
                         r2Container.style.display = 'block';
+                        
+                        // Trigger Aliyun Task automatically if both URLs are present
+                        if (charUrl && vidUrl) {
+                            startAliyunTask(charUrl, vidUrl);
+                        }
                     }
                 } else {
                     statusDiv.textContent = '错误: ' + data.error;
@@ -299,6 +327,83 @@
             } finally {
                 submitBtn.disabled = false;
             }
+        }
+        
+        async function startAliyunTask(charUrl, vidUrl) {
+            const aliyunContainer = document.getElementById('aliyunContainer');
+            const aliyunStatus = document.getElementById('aliyunStatus');
+            
+            aliyunContainer.style.display = 'block';
+            aliyunStatus.textContent = '正在提交 AI 视频生成任务...';
+            log('Submitting Aliyun task...');
+            
+            try {
+                const response = await fetch('/api/generate_video', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        character_url: charUrl,
+                        video_url: vidUrl
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.task_id) {
+                    log(`Aliyun task started. Task ID: ${data.task_id}`);
+                    aliyunStatus.textContent = `任务已提交 (ID: ${data.task_id})，正在生成中，请耐心等待...`;
+                    pollTaskStatus(data.task_id);
+                } else {
+                    aliyunStatus.textContent = '任务提交失败: ' + (data.error || '未知错误');
+                    log(`Aliyun task submission failed: ${data.error}`);
+                }
+            } catch (error) {
+                aliyunStatus.textContent = '请求错误: ' + error.message;
+                log(`Aliyun task request error: ${error.message}`);
+            }
+        }
+        
+        async function pollTaskStatus(taskId) {
+            const aliyunStatus = document.getElementById('aliyunStatus');
+            const generatedVideoContainer = document.getElementById('generatedVideoContainer');
+            const generatedVideoPlayer = document.getElementById('generatedVideoPlayer');
+            const generatedVideoLink = document.getElementById('generatedVideoLink');
+            
+            const intervalId = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/task_status/${taskId}`);
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        const status = data.status;
+                        log(`Task ${taskId} status: ${status}`);
+                        
+                        if (status === 'SUCCEEDED') {
+                            clearInterval(intervalId);
+                            aliyunStatus.textContent = '生成成功！';
+                            aliyunStatus.style.color = 'green';
+                            
+                            generatedVideoPlayer.src = data.result;
+                            generatedVideoLink.href = data.result;
+                            generatedVideoContainer.style.display = 'block';
+                            log(`Video generated: ${data.result}`);
+                        } else if (status === 'FAILED') {
+                            clearInterval(intervalId);
+                            aliyunStatus.textContent = '生成失败: ' + data.result;
+                            aliyunStatus.style.color = 'red';
+                            log(`Task failed: ${data.result}`);
+                        } else {
+                            aliyunStatus.textContent = `生成中... (状态: ${status})`;
+                        }
+                    } else {
+                        log(`Poll status failed: ${data.error}`);
+                    }
+                } catch (error) {
+                    log(`Poll error: ${error.message}`);
+                }
+            }, 5000); // Poll every 5 seconds
         }
     </script>
 </body>

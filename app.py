@@ -11,12 +11,7 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 import obs_utils
-# Import the RunwayML task function
-try:
-    from video_change_face_demo import run_aliyun_task
-except ImportError:
-    run_aliyun_task = None
-    logger.warning("Could not import run_aliyun_task from video_change_face_demo.py")
+import aliyun_utils
 
 load_dotenv()
 
@@ -301,6 +296,36 @@ def manual_upload_video():
         logger.error(f"Manual video upload error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/generate_video', methods=['POST'])
+def api_generate_video():
+    try:
+        data = request.json
+        character_url = data.get('character_url')
+        video_url = data.get('video_url')
+        
+        if not character_url or not video_url:
+            return jsonify({'error': 'Missing character_url or video_url'}), 400
+            
+        task_id = aliyun_utils.create_task(character_url, video_url)
+        
+        if task_id:
+            return jsonify({'message': 'Task started', 'task_id': task_id})
+        else:
+            return jsonify({'error': 'Failed to start Aliyun task'}), 500
+            
+    except Exception as e:
+        logger.error(f"Generate video API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/task_status/<task_id>', methods=['GET'])
+def api_task_status(task_id):
+    try:
+        status, result = aliyun_utils.check_task_status(task_id)
+        return jsonify({'status': status, 'result': result})
+    except Exception as e:
+        logger.error(f"Task status API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/process', methods=['POST'])
 def process_video():
     print("DEBUG: Received process_video request", flush=True)
@@ -357,23 +382,9 @@ def process_video():
         print(f"DEBUG: Video upload result: {video_obs_url}", flush=True)
         logger.info(f"Video uploaded to: {video_obs_url}")
         
-        # 3. Trigger Aliyun Image2Video Task (Optional/Async)
-        aliyun_result = None
-        if run_aliyun_task and character_url and video_obs_url:
-             try:
-                 # Note: This is blocking and might timeout the request if it takes too long.
-                 # ideally this should be a background task (e.g. Celery), but for now we call it directly
-                 # or maybe we just return the links and let the user trigger it manually if they prefer.
-                 # Given the requirement "Replace Google Drive placeholder links... in video_change_face_demo.py",
-                 # the user might expect it to run.
-                 # Let's log that we are skipping auto-execution to avoid timeout, 
-                 # or we can try to run it if it's fast enough (RunwayML create is fast, wait_for_task_output is slow).
-                 # The refactored function calls wait_for_task_output().
-                 # So we should probably NOT call it here synchronously.
-                 logger.info("Aliyun task integration ready. Use the returned OBS URLs to run video_change_face_demo.py manually to avoid request timeout.")
-                 pass
-             except Exception as e:
-                 logger.error(f"Failed to trigger Aliyun task: {e}")
+        # 3. Trigger Aliyun Image2Video Task (Async via frontend)
+        # We just return the URLs and let the frontend trigger the generation to handle the long wait time.
+        # This prevents the initial request from timing out.
 
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
