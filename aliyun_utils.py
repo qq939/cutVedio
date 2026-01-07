@@ -73,6 +73,7 @@ def check_task_status(task_id):
     Status: 'PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'UNKNOWN'
     """
     if not ALIYUN_API_KEY:
+        print("ALIYUN_API_KEY not found in environment variables.",flush=True)
         return 'FAILED', 'Missing API Key'
 
     url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
@@ -88,12 +89,15 @@ def check_task_status(task_id):
             status = output.get('task_status', 'UNKNOWN')
             
             if status == 'SUCCEEDED':
-                video_url = output.get('video_url')
+                video_url = output.get('results').get('video_url')
+                print(f"Aliyun task {task_id} succeeded, video_url: {video_url}",flush=True)
                 return 'SUCCEEDED', video_url
             elif status == 'FAILED':
                 message = output.get('message', 'Unknown error')
+                print(f"Aliyun task {task_id} failed, message: {message}",flush=True)
                 return 'FAILED', message
             else:
+                print(f"Aliyun task {task_id} status: {status}",flush=True)
                 return status, None
         else:
             logger.error(f"Check status failed: {response.status_code}")

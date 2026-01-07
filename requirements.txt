@@ -8,4 +8,4 @@ httpx
 pydantic
 requests
 python-dotenv
-volcengine
+volcengine==1.0.210

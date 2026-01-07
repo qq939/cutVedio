@@ -317,7 +317,7 @@ def api_generate_video():
         if not character_url or not video_url:
             return jsonify({'error': 'Missing character_url or video_url'}), 400
             
-        task_id = jimeng_utils.create_jimeng_task(character_url, video_url)
+        task_id = aliyun_utils.create_task(character_url, video_url)
         
         if task_id:
             return jsonify({'message': 'Task started', 'task_id': task_id})
@@ -331,7 +331,7 @@ def api_generate_video():
 @app.route('/api/task_status/<task_id>', methods=['GET'])
 def api_task_status(task_id):
     try:
-        status, result = jimeng_utils.check_task_status(task_id)
+        status, result = aliyun_utils.check_task_status(task_id)
         
         # If succeeded and we have a video URL, download it to ULTRA_VIDEO_FOLDER
         if status == 'SUCCEEDED' and result and result.startswith('http'):

@@ -1,147 +1,199 @@
+# 加载环境变量（可选）
+try:
+    import dotenv
+    dotenv.load_dotenv()
+except ImportError:
+    pass
+
+# ========== 核心修复：兼容所有urllib3版本的编码方案 ==========
+import os
+import requests
 import json
 import time
-import os
-import logging
-from volcengine.visual.VisualService import VisualService
-from volcengine.ApiInfo import ApiInfo
+import hmac
+import hashlib
+from urllib.parse import urlparse, urlencode, quote_plus
+import base64
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# ========== 核心配置（必须填真实值） ==========
+VOLC_ACCESS_KEY = "你的真实AK"  # 替换根用户AK（纯ASCII字符）
+VOLC_SECRET_KEY = "你的真实SK"  # 替换根用户SK（纯ASCII字符）
+ENDPOINT = "https://visual.volcengineapi.com"
 
-# Load environment variables
-VOLC_ACCESS_KEY = os.getenv("VOLC_ACCESSKEY")
-VOLC_SECRET_KEY = os.getenv("VOLC_SECRETKEY")
+# ========== 火山引擎官方标准V4签名（无适配器依赖） ==========
+def generate_official_authorization(ak, sk, method, url, headers, body):
+    """火山引擎官方V4签名（确保Authorization头仅含ASCII字符）"""
+    # 1. 解析URL
+    parsed_url = urlparse(url)
+    host = parsed_url.hostname
+    path = parsed_url.path or "/"
+    query = parsed_url.query
 
-# Define the service
-visual_service = VisualService()
-visual_service.set_ak(VOLC_ACCESS_KEY)
-visual_service.set_sk(VOLC_SECRET_KEY)
+    # 2. 时间处理（官方格式）
+    t = time.time()
+    dt_utc = time.gmtime(t)
+    amz_date = time.strftime("%Y%m%dT%H%M%SZ", dt_utc)
+    date_str = time.strftime("%Y%m%d", dt_utc)
 
-# Manually add the API info for MotionMimic
-# Version 2022-08-31 is commonly used for newer Generative AI features in Volcengine
-visual_service.api_info["MotionMimic"] = ApiInfo("POST", "/", {"Action": "MotionMimic", "Version": "2022-08-31"}, {}, {})
-visual_service.api_info["GetVisualTask"] = ApiInfo("GET", "/", {"Action": "GetVisualTask", "Version": "2022-08-31"}, {}, {})
-
-def create_jimeng_task(image_url, video_url):
-    """
-    Submits an Action Mimicry task to Volcengine Jimeng API.
-    """
-    if not VOLC_ACCESS_KEY or not VOLC_SECRET_KEY:
-        logger.error("VOLC_ACCESSKEY or VOLC_SECRETKEY not found.")
-        print("VOLC_ACCESSKEY or VOLC_SECRETKEY not found.", flush=True)
-        return None
-
-    # Action: MotionMimic
-    action_name = "MotionMimic" 
-    
-    # Construct the request body
-    # Based on documentation input: image + video
-    req_body = {
-        "req_key": "motion_mimic",
-        "binary_data_base64": [],
-        "image_urls": [image_url],
-        "video_urls": [video_url],
+    # 3. 规范化请求头（仅ASCII字符）
+    canonical_headers = {
+        "content-type": headers.get("Content-Type", "").strip(),
+        "host": host
     }
-    
-    try:
-        logger.info(f"Submitting Jimeng task (Action={action_name})...")
-        print(f"Submitting Jimeng task (Action={action_name})...", flush=True)
-        
-        # Prepare params
-        params = dict()
-        
-        # Call the API
-        # Service.json() returns a JSON string
-        resp_str = visual_service.json(action_name, params, json.dumps(req_body))
-        resp = json.loads(resp_str)
-        
-        logger.info(f"Jimeng response: {resp}")
-        print(f"Jimeng response: {resp}", flush=True)
-        
-        # Check response structure
-        if resp and "data" in resp and "task_id" in resp["data"]:
-            return resp["data"]["task_id"]
-        elif resp and "code" in resp and resp["code"] != 10000:
-             logger.error(f"Jimeng API error: {resp}")
-             return None
-        
-        return None
+    sorted_headers = sorted(canonical_headers.items())
+    canonical_header_str = "\n".join([f"{k}:{v}" for k, v in sorted_headers]) + "\n"
+    signed_headers = ";".join([k for k, _ in sorted_headers])
 
-    except Exception as e:
-        logger.error(f"Jimeng task submission error: {e}")
-        print(f"Jimeng task submission error: {e}", flush=True)
-        return None
+    # 4. 规范化Query参数
+    query_dict = {}
+    if query:
+        for kv in query.split("&"):
+            if "=" in kv:
+                k, v = kv.split("=", 1)
+                query_dict[k] = v
+    sorted_query = sorted(query_dict.items())
+    canonical_query_str = "&".join([f"{quote_plus(k)}={quote_plus(v)}" for k, v in sorted_query])
 
-def check_task_status(task_id):
-    """
-    Checks the status of a Jimeng task.
-    """
+    # 5. Body哈希
+    body_bytes = body.encode("utf-8") if isinstance(body, str) else body
+    payload_hash = hashlib.sha256(body_bytes).hexdigest()
+
+    # 6. 规范化请求
+    canonical_request = (
+        f"{method.upper()}\n"
+        f"{quote_plus(path)}\n"
+        f"{canonical_query_str}\n"
+        f"{canonical_header_str}\n"
+        f"{signed_headers}\n"
+        f"{payload_hash}"
+    )
+
+    # 7. 签名字符串
+    credential_scope = f"{date_str}/cn-north-1/visual/volc_request"
+    string_to_sign = (
+        f"HMAC-SHA256\n"
+        f"{amz_date}\n"
+        f"{credential_scope}\n"
+        f"{hashlib.sha256(canonical_request.encode('utf-8')).hexdigest()}"
+    )
+
+    # 8. 签名密钥（四级推导）
+    def get_signing_key(key, date, region, service):
+        k_date = hmac.new(("VOLC" + key).encode("utf-8"), date.encode("utf-8"), hashlib.sha256).digest()
+        k_region = hmac.new(k_date, region.encode("utf-8"), hashlib.sha256).digest()
+        k_service = hmac.new(k_region, service.encode("utf-8"), hashlib.sha256).digest()
+        k_signing = hmac.new(k_service, b"volc_request", hashlib.sha256).digest()
+        return k_signing
+
+    signing_key = get_signing_key(sk, date_str, "cn-north-1", "visual")
+    signature = hmac.new(signing_key, string_to_sign.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    # 9. 构造Authorization头（核心：确保仅含ASCII字符）
+    # 对AK进行URL编码，避免所有非ASCII字符
+    ak_encoded = quote_plus(ak)
+    authorization_header = (
+        f"HMAC-SHA256 "
+        f"Credential={ak_encoded}/{credential_scope}, "
+        f"SignedHeaders={signed_headers}, "
+        f"Signature={signature}"
+    )
+
+    # 10. 返回请求头（所有值均为ASCII）
+    headers["Authorization"] = authorization_header
+    headers["X-Volc-Date"] = amz_date
+    headers["X-Volc-Region"] = "cn-north-1"
+    # 强制指定请求头编码为ASCII
+    headers["Accept-Charset"] = "ASCII"
+    return headers
+
+# ========== 核心调用函数（无适配器，彻底解决编码问题） ==========
+def create_jimeng_task(image_url: str, video_url: str):
+    """无适配器依赖，确保所有请求头仅含ASCII字符"""
+    # 1. 基础校验
     if not VOLC_ACCESS_KEY or not VOLC_SECRET_KEY:
-        return 'FAILED', 'Missing API Key'
+        print("❌ 请填写真实AK/SK！", flush=True)
+        return None
+    if not (image_url.startswith("https://") and video_url.startswith("https://")):
+        print("❌ URL必须是HTTPS！", flush=True)
+        return None
 
-    req_body = {
-        "task_id": task_id
+    # 2. 构造参数（确保无中文，仅ASCII）
+    query_params = {
+        "Action": "ImageMotionMimic",
+        "Version": "2024-01-01",
+        "Region": "cn-north-1"
     }
-    
+    payload = {
+        "ImageUrl": image_url,
+        "VideoUrl": video_url,
+        "Style": "Cartoon",
+        "OutputFormat": "mp4",
+        "Resolution": "720p"
+    }
+    # 生成JSON（确保输出为ASCII）
+    payload_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=True)
+
+    # 3. 基础请求头（仅ASCII字符）
+    headers = {
+        "Content-Type": "application/json; charset=ASCII",  # 强制ASCII
+        "Host": "visual.volcengineapi.com",
+        "Accept": "application/json; charset=ASCII"
+    }
+
+    # 4. 拼接URL并生成签名
+    query_str = urlencode(query_params, quote_via=quote_plus)
+    final_url = f"{ENDPOINT}?{query_str}"
+    headers = generate_official_authorization(
+        ak=VOLC_ACCESS_KEY,
+        sk=VOLC_SECRET_KEY,
+        method="POST",
+        url=final_url,
+        headers=headers,
+        body=payload_str
+    )
+
+    # 5. 发送请求（无自定义适配器，原生requests）
     try:
-        # Note: Polling action might differ.
-        # We can also switch this to requests if needed, but VisualService.json might work for GetVisualTask
-        # Assuming GetVisualTask is a standard CV action
-        resp_str = visual_service.json("GetVisualTask", dict(), json.dumps(req_body))
-        resp = json.loads(resp_str)
+        print(f"✅ 发送官方请求：{final_url}", flush=True)
         
-        if resp and "data" in resp:
-            data = resp["data"]
-            status = data.get("status") # e.g. "ProcessSuccess", "Processing", "ProcessFail"
-            
-            if status == "ProcessSuccess":
-                # Result usually in 'resp_data' which might be a JSON string or dict
-                res_data = data.get("resp_data")
-                if isinstance(res_data, str):
-                    try:
-                        res_data = json.loads(res_data)
-                    except:
-                        pass
-                
-                # Extract video URL
-                # Structure depends on the specific algorithm
-                video_url = None
-                if isinstance(res_data, dict) and "video_url" in res_data:
-                    video_url = res_data["video_url"]
-                
-                return 'SUCCEEDED', video_url
-            elif status == "ProcessFail":
-                return 'FAILED', data.get("fail_reason", "Unknown failure")
+        # 原生requests发送，无适配器依赖
+        response = requests.post(
+            url=final_url,
+            headers=headers,
+            data=payload_str.encode("ASCII"),  # 强制ASCII编码
+            timeout=60,
+            verify=True
+        )
+
+        # 解析响应
+        print(f"📝 状态码：{response.status_code}", flush=True)
+        # 用UTF-8解码响应（兼容返回内容）
+        response_text = response.content.decode("utf-8", errors="ignore")
+        print(f"📝 响应：{response_text}", flush=True)
+
+        resp_json = json.loads(response_text) if response_text else {}
+        if response.status_code == 200 and "Result" in resp_json:
+            task_id = resp_json["Result"].get("TaskId")
+            if task_id:
+                print(f"\n🎉 成功！TaskId：{task_id}")
+                return task_id
             else:
-                return 'RUNNING', None
+                print("\n❌ 无TaskId")
+                return None
         else:
-            return 'UNKNOWN', str(resp)
-            
+            error_msg = resp_json.get("ResponseMetadata", {}).get("Error", {}).get("Message", "未知错误")
+            print(f"\n❌ 失败：{error_msg}")
+            return None
+
     except Exception as e:
-        logger.error(f"Error checking status: {e}")
-        return 'UNKNOWN', str(e)
-                if isinstance(res_data, str):
-                    try:
-                        res_data = json.loads(res_data)
-                    except:
-                        pass
-                
-                # Extract video URL
-                # Structure depends on the specific algorithm
-                video_url = None
-                if isinstance(res_data, dict) and "video_url" in res_data:
-                    video_url = res_data["video_url"]
-                
-                return 'SUCCEEDED', video_url
-            elif status == "ProcessFail":
-                return 'FAILED', data.get("fail_reason", "Unknown failure")
-            else:
-                return 'RUNNING', None
-        else:
-            return 'UNKNOWN', str(resp)
-            
-    except Exception as e:
-        logger.error(f"Error checking status: {e}")
-        print(f"Error checking status: {e}", flush=True)
-        return 'UNKNOWN', str(e)
+        print(f"\n❌ 异常：{str(e)}")
+        import traceback
+        print(f"❌ 详情：{traceback.format_exc()}")
+        return None
+
+# ========== 测试调用 ==========
+if __name__ == "__main__":
+    # 确保URL为纯ASCII
+    TEST_IMAGE_URL = "https://obs.dimond.top/character.png"
+    TEST_VIDEO_URL = "https://obs.dimond.top/reference.mp4"
+    create_jimeng_task(TEST_IMAGE_URL, TEST_VIDEO_URL)
