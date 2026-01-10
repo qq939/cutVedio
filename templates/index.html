@@ -17,6 +17,7 @@
         }
 
         .container {
+            position: relative;
             background-color: white;
             padding: 40px;
             border-radius: 12px;
@@ -24,6 +25,26 @@
             width: 100%;
             max-width: 600px;
             text-align: center;
+        }
+
+        .home-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background-color 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .home-btn:hover {
+            background-color: #f0f0f0;
+            color: #007bff;
         }
 
         h1 {
@@ -97,6 +118,12 @@
 <body>
 
     <div class="container">
+        <button class="home-btn" onclick="resetApp()" title="回到主页">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+        </button>
         <h1>视频抽帧工具</h1>
         
         <div class="input-group">
@@ -143,7 +170,7 @@
         </div>
 
         <div id="aliyunContainer" style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px; display: none; text-align: left; border: 1px solid #ffeeba;">
-            <h3 style="margin-top: 0; font-size: 16px;">AI 视频生成 (Volcengine Jimeng)</h3>
+            <h3 style="margin-top: 0; font-size: 16px;">AI 视频生成 (Aliyun Bailian)</h3>
             <div id="aliyunStatus" style="margin-bottom: 10px; font-size: 14px;">等待开始...</div>
             <div id="generatedVideoContainer" style="display: none;">
                 <video id="generatedVideoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px; margin-bottom: 10px;">
@@ -157,6 +184,133 @@
     </div>
 
     <script>
+        // State Management
+        const STATE_KEY = 'videoExtractorState';
+
+        function saveState(data) {
+            const currentState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+            const newState = { ...currentState, ...data };
+            localStorage.setItem(STATE_KEY, JSON.stringify(newState));
+        }
+
+        function loadState() {
+            const state = JSON.parse(localStorage.getItem(STATE_KEY));
+            if (!state) return;
+
+            if (state.videoUrl) {
+                document.getElementById('videoUrl').value = state.videoUrl;
+            }
+
+            if (state.logs && state.logs.length > 0) {
+                 const consoleDiv = document.getElementById('debugConsole');
+                 if(state.logs.length > 0) {
+                     // Clear default "System Ready" if present
+                     if (consoleDiv.children.length === 1 && consoleDiv.children[0].textContent.includes("System Ready")) {
+                         consoleDiv.innerHTML = '';
+                     }
+                     
+                     // Clear to avoid duplicates on re-run (though loadState runs once)
+                     consoleDiv.innerHTML = ''; 
+                     
+                     state.logs.forEach(msg => {
+                        const entry = document.createElement('div');
+                        entry.textContent = msg;
+                        consoleDiv.appendChild(entry);
+                     });
+                     consoleDiv.scrollTop = consoleDiv.scrollHeight;
+                 }
+            }
+
+            if (state.processData) {
+                restoreProcessData(state.processData);
+            }
+
+            if (state.aliyunTask) {
+                const aliyunContainer = document.getElementById('aliyunContainer');
+                const aliyunStatus = document.getElementById('aliyunStatus');
+                aliyunContainer.style.display = 'block';
+                
+                if (state.aliyunTask.status === 'SUCCEEDED') {
+                    aliyunStatus.textContent = '生成成功！(已恢复)';
+                    aliyunStatus.style.color = 'green';
+                    const generatedVideoPlayer = document.getElementById('generatedVideoPlayer');
+                    const generatedVideoLink = document.getElementById('generatedVideoLink');
+                    const generatedVideoContainer = document.getElementById('generatedVideoContainer');
+                    
+                    generatedVideoPlayer.src = state.aliyunTask.result;
+                    generatedVideoLink.href = state.aliyunTask.result;
+                    generatedVideoContainer.style.display = 'block';
+                } else if (state.aliyunTask.status === 'FAILED') {
+                     aliyunStatus.textContent = '生成失败: ' + state.aliyunTask.result;
+                     aliyunStatus.style.color = 'red';
+                } else {
+                    // Resume polling if still pending
+                    aliyunStatus.textContent = `任务恢复中 (ID: ${state.aliyunTask.id})...`;
+                    pollTaskStatus(state.aliyunTask.id);
+                }
+            }
+        }
+
+        function restoreProcessData(data) {
+            const statusDiv = document.getElementById('status');
+            const galleryDiv = document.getElementById('gallery');
+            const videoContainer = document.getElementById('videoContainer');
+            const videoPlayer = document.getElementById('videoPlayer');
+            const originalLink = document.getElementById('originalLink');
+            const r2Container = document.getElementById('r2Container');
+
+            statusDiv.textContent = data.message || '已恢复上次会话状态';
+            
+            // Display images
+            galleryDiv.innerHTML = '';
+            if (data.images) {
+                data.images.forEach(imageSrc => {
+                    const img = document.createElement('img');
+                    img.src = imageSrc;
+                    galleryDiv.appendChild(img);
+                });
+            }
+            
+            // Display video
+            if (data.video_url) {
+                videoPlayer.src = data.video_url;
+                videoContainer.style.display = 'block';
+            }
+
+            // Set original link
+            if (data.original_url) {
+                originalLink.href = data.original_url;
+                originalLink.textContent = data.original_url;
+            }
+
+            // Display OBS Links
+            const characterLink = document.getElementById('characterLink');
+            const videoLink = document.getElementById('videoLink');
+            
+            if (data.upload_urls) {
+                if (data.upload_urls.character) {
+                    characterLink.href = data.upload_urls.character;
+                    characterLink.textContent = '角色图片';
+                    characterLink.style.display = 'inline-block';
+                }
+                if (data.upload_urls.video) {
+                    videoLink.href = data.upload_urls.video;
+                    videoLink.textContent = '处理视频';
+                    videoLink.style.display = 'inline-block';
+                }
+                r2Container.style.display = 'block';
+            }
+        }
+
+        function resetApp() {
+            if(confirm('确定要清除所有状态并回到主页吗？')) {
+                localStorage.removeItem(STATE_KEY);
+                location.reload();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadState);
+
         function manualUploadCharacter() {
             const statusDiv = document.getElementById('manualUploadStatus');
             statusDiv.textContent = '正在推送角色图片...';
@@ -211,14 +365,23 @@
 
         function log(message) {
             const consoleDiv = document.getElementById('debugConsole');
+            let timeString = '';
             if (consoleDiv) {
                 const entry = document.createElement('div');
-                const timeString = new Date().toLocaleTimeString();
+                timeString = new Date().toLocaleTimeString();
                 entry.textContent = `> ${timeString} ${message}`;
                 consoleDiv.appendChild(entry);
                 consoleDiv.scrollTop = consoleDiv.scrollHeight;
             }
             console.log(message);
+            
+            // Save log to state
+            const currentState = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+            const logs = currentState.logs || [];
+            logs.push(`> ${timeString} ${message}`);
+            // Limit logs to last 50 to prevent overflow
+            if (logs.length > 50) logs.shift();
+            saveState({ logs: logs });
         }
 
         async function processVideo() {
@@ -239,8 +402,17 @@
                 return;
             }
 
-            // Reset UI
+            // Save input
+            saveState({ videoUrl: videoUrl });
+
+            // Reset UI and State
             statusDiv.textContent = '正在处理中，请稍候...';
+            // Clear process data from state
+            const state = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+            delete state.processData;
+            delete state.aliyunTask;
+            localStorage.setItem(STATE_KEY, JSON.stringify(state));
+
             try {
                 log(`Starting process for: ${videoUrl}`);
             } catch (e) {
@@ -271,6 +443,9 @@
                     log('Process successful.');
                     statusDiv.textContent = data.message;
                     
+                    // Save process data
+                    saveState({ processData: data });
+
                     // Display images
                     const timestamp = new Date().getTime();
                     data.images.forEach(imageSrc => {
@@ -354,6 +529,15 @@
                 if (response.ok && data.task_id) {
                     log(`Aliyun task started. Task ID: ${data.task_id}`);
                     aliyunStatus.textContent = `任务已提交 (ID: ${data.task_id})，正在生成中，请耐心等待...`;
+                    
+                    // Save task info
+                    saveState({ 
+                        aliyunTask: { 
+                            id: data.task_id, 
+                            status: 'PENDING' 
+                        } 
+                    });
+                    
                     pollTaskStatus(data.task_id);
                 } else {
                     aliyunStatus.textContent = '任务提交失败: ' + (data.error || '未知错误');
@@ -389,11 +573,29 @@
                             generatedVideoLink.href = data.result;
                             generatedVideoContainer.style.display = 'block';
                             log(`Video generated: ${data.result}`);
+                            
+                            // Save success state
+                            saveState({ 
+                                aliyunTask: { 
+                                    id: taskId, 
+                                    status: 'SUCCEEDED', 
+                                    result: data.result 
+                                } 
+                            });
                         } else if (status === 'FAILED') {
                             clearInterval(intervalId);
                             aliyunStatus.textContent = '生成失败: ' + data.result;
                             aliyunStatus.style.color = 'red';
                             log(`Task failed: ${data.result}`);
+                            
+                            // Save failure state
+                            saveState({ 
+                                aliyunTask: { 
+                                    id: taskId, 
+                                    status: 'FAILED', 
+                                    result: data.result 
+                                } 
+                            });
                         } else {
                             aliyunStatus.textContent = `生成中... (状态: ${status})`;
                         }

@@ -18,3 +18,7 @@ Assistant: Fixed TypeError in jimeng_utils.py. The visual_service.json() method 
 User: 请测试ok再下线，如果测试搞不定，你就用用post请求调用动作模仿的接口。
 Assistant: Updated jimeng_utils.py to use manual requests.post with Volcengine SignerV4. This resolves the TypeError and provides full control over the Action and Version parameters. The user can now update the Version/Action in the code if 'InvalidActionOrVersion' persists.
 
+2026年 1月 10日 星期六
+User: 要保留状体啊，不要每次刷新网页都刷成空白
+Assistant: Implemented state persistence in `templates/index.html` using `localStorage`. Added a "Home" button (SVG icon) to clear the state and reset the application. The state (video URL, logs, processing results, Aliyun task status) is now saved and restored upon page reload.
+
