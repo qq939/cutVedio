@@ -140,6 +140,40 @@ class ComfyUIClient:
             logger.error(f"Queue prompt failed: {e}")
             return None
 
+    def cancel_task(self, prompt_id):
+        """
+        Cancels a task.
+        If pending: delete from queue.
+        If running: interrupt.
+        """
+        try:
+            # 1. Try to delete from queue (if pending)
+            url = f"http://{self.server_address}/queue"
+            data = {"delete": [prompt_id]}
+            data_json = json.dumps(data).encode('utf-8')
+            
+            logger.info(f"Attempting to delete pending task {prompt_id} from queue...")
+            req = urllib.request.Request(url, data=data_json, method='POST')
+            try:
+                with urllib.request.urlopen(req) as response:
+                    logger.info(f"Delete queue response: {response.read().decode('utf-8')}")
+            except Exception as e:
+                logger.warning(f"Failed to delete from queue (might be running): {e}")
+
+            # 2. Check if running and interrupt
+            status = self.is_task_running(prompt_id)
+            if status == "RUNNING":
+                url = f"http://{self.server_address}/interrupt"
+                logger.info(f"Task {prompt_id} is running. Sending interrupt...")
+                req = urllib.request.Request(url, data=b"", method='POST')
+                with urllib.request.urlopen(req) as response:
+                    logger.info(f"Interrupt response: {response.read().decode('utf-8')}")
+            
+            return True
+        except Exception as e:
+            logger.error(f"Cancel task failed: {e}")
+            return False
+
     def get_history(self, prompt_id):
         """
         Gets the history of a specific prompt.
@@ -259,6 +293,12 @@ def submit_job(character_path, video_path):
     except Exception as e:
         logger.error(f"Submit job error: {e}")
         return None, str(e)
+
+def cancel_job(prompt_id):
+    """
+    Cancels a job by prompt_id.
+    """
+    return client.cancel_task(prompt_id)
 
 def queue_workflow_template(char_filename, video_filename, prompt_text=None):
     """

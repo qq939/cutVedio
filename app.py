@@ -328,13 +328,17 @@ def manual_upload_character():
 @app.route('/manual_upload/video', methods=['POST'])
 def manual_upload_video():
     try:
+        print("DEBUG: Starting manual video upload...", flush=True)
         # Find the video file in VIDEO_FOLDER
         # We assume there's only one relevant video file or we take the latest
         files = glob.glob(os.path.join(VIDEO_FOLDER, '*.*'))
         # Filter for video extensions if needed, but for now take anything not hidden
         video_files = [f for f in files if not os.path.basename(f).startswith('.')]
         
+        print(f"DEBUG: Found files in {VIDEO_FOLDER}: {video_files}", flush=True)
+        
         if not video_files:
+             print("DEBUG: No video files found.", flush=True)
              return jsonify({'error': 'No video file found in tmp/video to upload. Please process a video first.'}), 404
              
         # Sort by modification time, latest first
@@ -343,15 +347,20 @@ def manual_upload_video():
         
         video_filename = os.path.basename(latest_video)
         logger.info(f"Manual upload: Found video {video_filename}")
+        print(f"DEBUG: Selected video for upload: {latest_video}", flush=True)
         
+        print(f"DEBUG: Calling obs_utils.upload_file...", flush=True)
         video_obs_url = obs_utils.upload_file(latest_video, 'reference.mp4', mime_type='video/mp4')
+        print(f"DEBUG: obs_utils.upload_file returned: {video_obs_url}", flush=True)
         
         if video_obs_url:
             return jsonify({'message': 'Video uploaded successfully', 'url': video_obs_url})
         else:
+             print("DEBUG: Upload failed (returned None/False).", flush=True)
              return jsonify({'error': 'Failed to upload video. Check logs.'}), 500
              
     except Exception as e:
+        print(f"DEBUG: Exception in manual_upload_video: {e}", flush=True)
         logger.error(f"Manual video upload error: {e}")
         return jsonify({'error': str(e)}), 500
 
@@ -497,6 +506,14 @@ def api_comfy_upload_video():
 @app.route('/api/comfy/execute', methods=['POST'])
 def api_comfy_execute():
     try:
+        data = request.json or {}
+        
+        # Check for cancel request
+        cancel_task_id = data.get('cancel_task_id')
+        if cancel_task_id:
+            logger.info(f"Cancelling previous task: {cancel_task_id}")
+            comfy_utils.cancel_job(cancel_task_id)
+            
         # We assume files are already uploaded and we know their names or use defaults?
         # comfy_utils.queue_workflow_template needs filenames.
         # But here we don't know the exact filenames ComfyUI assigned unless frontend sends them.
@@ -504,7 +521,6 @@ def api_comfy_execute():
         # Let's re-resolve filenames from local paths as best guess or use params.
         
         # Option: Frontend sends filenames if available, else we guess.
-        data = request.json or {}
         char_filename = data.get('char_filename')
         video_filename = data.get('video_filename')
         prompt_text = data.get('prompt_text')
