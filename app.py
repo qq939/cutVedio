@@ -678,4 +678,4 @@ def process_video():
 
 if __name__ == '__main__':
     # Use 5003 to avoid conflict
-    app.run(debug=True, port=5003)
+    app.run(debug=True, port=5020)
