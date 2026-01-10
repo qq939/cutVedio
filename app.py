@@ -360,6 +360,8 @@ def api_generate_video():
         logger.error(f"Generate video API error: {e}")
         return jsonify({'error': str(e)}), 500
 
+from datetime import datetime
+
 @app.route('/api/task_status/<task_id>', methods=['GET'])
 def api_task_status(task_id):
     try:
@@ -373,6 +375,20 @@ def api_task_status(task_id):
                 
                 if local_path:
                     filename = os.path.basename(local_path)
+                    
+                    # Upload to OBS with new naming convention
+                    # Naming: 【YYYY_MM_DD_HH_MM_SS】new.mp4
+                    now = datetime.now()
+                    obs_filename = now.strftime("【%Y_%m_%d_%H_%M_%S】new.mp4")
+                    
+                    logger.info(f"Uploading generated video to OBS as: {obs_filename}")
+                    try:
+                        obs_utils.upload_file(local_path, obs_filename, mime_type='video/mp4')
+                        logger.info(f"Successfully uploaded generated video to OBS: {obs_filename}")
+                    except Exception as obs_error:
+                        logger.error(f"Failed to upload generated video to OBS: {obs_error}")
+                        # We don't fail the request if OBS upload fails, just log it
+                    
                     # Return the local URL
                     local_url = f"/ultraVideo/{filename}"
                     return jsonify({'status': status, 'result': local_url})
@@ -461,6 +477,78 @@ def api_comfy_execute():
             
     except Exception as e:
         logger.error(f"Comfy execute error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/overall', methods=['POST'])
+def api_overall():
+    try:
+        data = request.json
+        if not data or 'url' not in data:
+            return jsonify({'error': 'Missing url parameter'}), 400
+            
+        raw_input = data['url']
+        logger.info(f"Overall process started with input: {raw_input}")
+        
+        # 1. Process Video (Extract URL, Download, Frame Extract, Upload to OBS)
+        # We need to reuse the logic from process_video but programmatically
+        # Refactoring process_video to a helper function would be cleaner, but for now I'll call it or duplicate/adapt logic.
+        # Calling process_video() directly is tricky because it relies on request.form and returns Response object.
+        # Let's extract the core logic of process_video into a helper function later? 
+        # For now, let's adapt the logic here.
+        
+        # Extract URL
+        url_match = re.search(r'(https?://[^\s]+)', raw_input)
+        if url_match:
+            video_url = url_match.group(1)
+        else:
+            video_url = raw_input.strip()
+            
+        logger.info(f"Extracted Video URL: {video_url}")
+        
+        # --- Start Processing Logic ---
+        downloaded_video_path = None
+        
+        # A. Character Upload
+        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+        character_obs_url = convert_and_upload_character(character_path)
+        if not character_obs_url:
+             return jsonify({'error': 'Failed to upload character'}), 500
+
+        # B. Clean up
+        for f in os.listdir(VIDEO_FOLDER):
+            file_path = os.path.join(VIDEO_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                
+        # C. Download Video
+        downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
+        if not downloaded_video_path:
+             return jsonify({'error': 'Failed to download video'}), 500
+             
+        # D. Upload Video to OBS
+        video_filename = os.path.basename(downloaded_video_path)
+        video_obs_url = obs_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
+        if not video_obs_url:
+             return jsonify({'error': 'Failed to upload video to OBS'}), 500
+             
+        # E. Submit to ComfyUI
+        # We use the local paths for ComfyUI submission as per comfy_utils requirement
+        task_id, error = comfy_utils.submit_job(character_path, downloaded_video_path)
+        
+        if task_id:
+            return jsonify({
+                'message': 'Task submitted successfully', 
+                'task_id': task_id,
+                'obs_urls': {
+                    'character': character_obs_url,
+                    'video': video_obs_url
+                }
+            })
+        else:
+            return jsonify({'error': f'Failed to submit ComfyUI task: {error}'}), 500
+
+    except Exception as e:
+        logger.error(f"Overall API error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/process', methods=['POST'])
