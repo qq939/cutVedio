@@ -5,6 +5,7 @@
 - **Quick Open File**: `Cmd + P` (Quickly find files by name)
 - **Multi-Cursor**: `Opt + Click` (Add multiple cursors) or `Cmd + Option + Up/Down`
 - **Toggle Terminal**: `Ctrl + ` ` (Backtick)
+- **Toggle Line Comment**: `Cmd + /`
 - **Format Document**: `Shift + Option + F`
 - **Go to Definition**: `F12` or `Cmd + Click`
 - **Trigger Suggestion**: `Ctrl + Space`
