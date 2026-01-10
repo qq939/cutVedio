@@ -197,28 +197,27 @@
             <video id="videoPlayer" controls style="width: 100%; border-radius: 8px;">
                 Your browser does not support the video tag.
             </video>
-        </div>
-
-        <!-- OBS Upload Section -->
-        <div id="r2Container" class="card" style="display: none;">
-            <div class="card-header">
-                <h3 class="card-title">OBS 上传状态</h3>
-            </div>
             
-            <div style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 6px;">
-                <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">手动推送 (失败重试)</div>
-                <div style="display: flex; gap: 10px;">
-                    <button type="button" class="action-btn" onclick="manualUploadCharacter()">推送角色图片</button>
-                    <button type="button" class="action-btn" onclick="manualUploadVideo()">推送视频</button>
+            <!-- OBS Upload Section (Merged) -->
+            <div id="r2Container" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                <div style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 6px;">
+                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">手动推送 (失败重试)</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="action-btn" onclick="manualUploadCharacter()">推送角色图片</button>
+                        <button type="button" class="action-btn" onclick="manualUploadVideo()">推送视频</button>
+                    </div>
+                    <div id="manualUploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
                 </div>
-                <div id="manualUploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
-            </div>
 
-            <div style="display: flex; gap: 15px;">
-                <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
-                <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
+                <div style="display: flex; gap: 15px;">
+                    <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
+                    <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
+                </div>
             </div>
         </div>
+
+        <!-- OBS Upload Section (Removed as it's merged above) -->
+
 
         <!-- AI Generation Section -->
         <div id="aliyunContainer" class="card" style="display: block; background-color: #f0f8ff; border-color: #cce5ff;">
@@ -367,6 +366,10 @@
                     videoLink.textContent = '处理视频';
                     videoLink.style.display = 'inline-block';
                 }
+                // r2Container is now inside videoContainer, so it shows when videoContainer shows.
+                // We don't need to explicitly show it if it's just a div.
+                // But if we want to toggle visibility of the tools based on upload status, we can.
+                // For now, let's keep it visible if video is visible.
                 r2Container.style.display = 'block';
                 
                 // Show AI container even if not started yet (Placeholder)
@@ -503,7 +506,16 @@
             }
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
-            r2Container.style.display = 'none';
+            // r2Container is inside videoContainer now, so hiding videoContainer hides it too.
+            // But we can reset its display to none if we want it hidden initially when video appears.
+            r2Container.style.display = 'block'; // Or 'none' if we want to wait for upload?
+            // Actually, the manual upload buttons are useful even before automatic upload succeeds if that fails.
+            // But usually we only have the video file locally after processVideo succeeds.
+            // So we should probably hide it until process is done? 
+            // But processVideo is async and updates UI when done.
+            // Let's reset it here.
+            r2Container.style.display = 'none'; 
+            
             // aliyunContainer.style.display = 'none'; // Keep visible as placeholder
             aliyunStatus.textContent = '等待视频处理...';
             generatedVideoContainer.style.display = 'none';
@@ -543,6 +555,9 @@
                     if (data.video_url) {
                         videoPlayer.src = `${data.video_url}?t=${timestamp}`;
                         videoContainer.style.display = 'block';
+                        
+                        // Show controls immediately when video is ready, so user can manually upload if auto fails
+                        if (r2Container) r2Container.style.display = 'block';
                     }
 
                     // Set original link

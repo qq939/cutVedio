@@ -13,10 +13,54 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ComfyUIClient:
-    def __init__(self, server_address="127.0.0.1:8188"):
-        self.server_address = server_address
+    def __init__(self, server_address=["192.168.50.210:7860", "192.168.0.210:7860"]):
         self.client_id = str(uuid.uuid4())
         self.ws = None
+        
+        # Handle server_address input
+        if isinstance(server_address, str):
+            # Check if it looks like a JSON list (e.g. from env var)
+            if server_address.strip().startswith('[') and server_address.strip().endswith(']'):
+                try:
+                    self.servers = json.loads(server_address)
+                except json.JSONDecodeError:
+                    self.servers = [server_address]
+            else:
+                self.servers = [server_address]
+        elif isinstance(server_address, list):
+            self.servers = server_address
+        else:
+            self.servers = ["127.0.0.1:8188"]
+            
+        self.server_address = self._find_active_server()
+        logger.info(f"ComfyUIClient initialized with server: {self.server_address}")
+
+    def _find_active_server(self):
+        """
+        Iterate through servers and find the first one that is reachable.
+        """
+        for server in self.servers:
+            try:
+                # Handle http/https prefix
+                clean_server = server.replace("http://", "").replace("https://", "").rstrip("/")
+                
+                url = f"http://{clean_server}/object_info"
+                logger.info(f"Checking connectivity to ComfyUI server: {url}")
+                # Short timeout for connectivity check
+                response = requests.get(url, timeout=3)
+                
+                if response.status_code == 200:
+                    logger.info(f"Successfully connected to ComfyUI server: {clean_server}")
+                    return clean_server
+            except Exception as e:
+                logger.warning(f"Failed to connect to {server}: {e}")
+        
+        # Fallback to the first one if none work
+        if self.servers:
+            fallback = self.servers[0].replace("http://", "").replace("https://", "").rstrip("/")
+            logger.warning(f"No active server found. Falling back to default: {fallback}")
+            return fallback
+        return "127.0.0.1:8188"
 
     def upload_file(self, file_path, subfolder="", overwrite=False):
         """
@@ -137,10 +181,12 @@ class ComfyUIClient:
 
 # Initialize client (Global instance or create per request? Better per request or global if stateless)
 # We'll assume the server address is fixed or passed via env.
-# The user's snippet had "192.168.50.:8188", which is likely a local LAN IP. 
-# For now, I'll default to localhost, but allow override.
-SERVER_ADDRESS = os.environ.get("COMFYUI_SERVER", "127.0.0.1:8188")
-client = ComfyUIClient(SERVER_ADDRESS)
+SERVER_ADDRESS = os.environ.get("COMFYUI_SERVER")
+if SERVER_ADDRESS:
+    client = ComfyUIClient(SERVER_ADDRESS)
+else:
+    # Use default list from __init__
+    client = ComfyUIClient()
 
 def submit_job(character_path, video_path):
     """
