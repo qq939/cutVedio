@@ -273,20 +273,16 @@ def manual_upload_character_image():
             return jsonify({'error': 'No selected file'}), 400
             
         if file:
-            # Save to face/lulu.webp (overwrite)
-            # Or save as original name and update code to use it? 
-            # The prompt says "replace lulu.webp".
-            # But comfy_utils uses face/lulu.webp by default.
-            # However, file might be png/jpg.
-            # We should convert it to webp or update the logic to accept other formats.
-            # Let's save as face/lulu.webp for consistency with existing logic.
-            # Or better, save as is and convert/rename.
-            
+            # Always save as face/lulu.webp
             target_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
             
-            # Convert to webp using PIL to ensure compatibility
+            # Convert to webp using PIL to ensure compatibility and correct format
             try:
                 img = Image.open(file)
+                # Convert to RGBA if needed to preserve transparency, or RGB if not
+                if img.mode not in ('RGB', 'RGBA'):
+                    img = img.convert('RGBA')
+                    
                 img.save(target_path, 'WEBP')
                 logger.info(f"Uploaded image converted and saved to {target_path}")
                 
