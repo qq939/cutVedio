@@ -144,11 +144,20 @@ class ComfyUIClient:
         """
         try:
             url = f"http://{self.server_address}/history/{prompt_id}"
+            logger.info(f"Fetching ComfyUI history: {url}")
             with urllib.request.urlopen(url) as response:
-                return json.loads(response.read())
+                data = json.loads(response.read())
+                # Log data but truncate if too long
+                data_str = json.dumps(data)
+                if len(data_str) > 1000:
+                    logger.info(f"ComfyUI history response (truncated): {data_str[:1000]}...")
+                else:
+                    logger.info(f"ComfyUI history response: {data_str}")
+                return data
         except Exception as e:
             # If 404, it might mean it's still running or not found
             # ComfyUI returns {} or error if not found in history (meaning potentially still in queue/running)
+            logger.warning(f"Failed to get history for {prompt_id}: {e}")
             return {}
 
     def get_queue(self):
@@ -157,8 +166,12 @@ class ComfyUIClient:
         """
         try:
             url = f"http://{self.server_address}/queue"
+            logger.info(f"Fetching ComfyUI queue: {url}")
             with urllib.request.urlopen(url) as response:
-                return json.loads(response.read())
+                data = json.loads(response.read())
+                # Queue data can be huge, just log summary
+                logger.info(f"ComfyUI queue response: Pending={len(data.get('queue_pending', []))}, Running={len(data.get('queue_running', []))}")
+                return data
         except Exception as e:
             logger.error(f"Get queue failed: {e}")
             return {}

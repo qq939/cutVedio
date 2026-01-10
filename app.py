@@ -406,7 +406,12 @@ from datetime import datetime
 @app.route('/api/task_status/<task_id>', methods=['GET'])
 def api_task_status(task_id):
     try:
+        logger.info(f"Checking status for task_id: {task_id}")
+        # Log request details
+        logger.info(f"Request Headers: {request.headers}")
+        
         status, result = comfy_utils.check_status(task_id)
+        logger.info(f"Status result for {task_id}: {status}, {result}")
         
         # If succeeded, result contains file_info dict
         if status == 'SUCCEEDED' and isinstance(result, dict):

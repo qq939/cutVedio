@@ -263,6 +263,7 @@
                      <button type="button" class="action-btn" onclick="comfyUploadCharacter()">推送角色图</button>
                      <button type="button" class="action-btn" onclick="comfyUploadVideo()">推送原视频</button>
                      <button type="button" class="action-btn" onclick="comfySubmitTask()">提交生成任务</button>
+                     <button type="button" class="action-btn secondary" onclick="queryTaskStatus()">查询任务状态</button>
                      <a id="generatedVideoLink" href="#" target="_blank" class="action-btn secondary" style="text-decoration: none; pointer-events: none; opacity: 0.6;">下载生成的视频</a>
                  </div>
                  <div id="comfyControlStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
@@ -315,8 +316,14 @@
             if (state.aliyunTask) {
                 const aliyunContainer = document.getElementById('aliyunContainer');
                 const aliyunStatus = document.getElementById('aliyunStatus');
+                const taskIdDisplay = document.getElementById('taskIdDisplay');
                 
                 aliyunContainer.style.display = 'block';
+                
+                // Restore Task ID display if available
+                if (state.aliyunTask.id && taskIdDisplay) {
+                    taskIdDisplay.textContent = `ID: ${state.aliyunTask.id}`;
+                }
                 
                 if (state.aliyunTask.status === 'SUCCEEDED') {
                     aliyunStatus.textContent = '生成成功！(已恢复)';
@@ -324,12 +331,7 @@
                     const generatedVideoPlayer = document.getElementById('generatedVideoPlayer');
                     const generatedVideoLink = document.getElementById('generatedVideoLink');
                     const generatedVideoContainer = document.getElementById('generatedVideoContainer');
-                    const taskIdDisplay = document.getElementById('taskIdDisplay');
                     
-                    if (state.aliyunTask.id) {
-                        taskIdDisplay.textContent = `ID: ${state.aliyunTask.id}`;
-                    }
-
                     generatedVideoPlayer.src = state.aliyunTask.result;
                     generatedVideoLink.href = state.aliyunTask.result;
                     generatedVideoLink.style.pointerEvents = 'auto';
@@ -831,6 +833,75 @@
             }
         }
         
+        function queryTaskStatus() {
+            const state = JSON.parse(localStorage.getItem(STATE_KEY));
+            let taskId = null;
+            
+            if (state && state.aliyunTask && state.aliyunTask.id) {
+                taskId = state.aliyunTask.id;
+            } else {
+                taskId = prompt("请输入要查询的任务ID:");
+            }
+            
+            if (!taskId) return;
+            
+            const statusDiv = document.getElementById('comfyControlStatus');
+            statusDiv.textContent = `正在查询任务 ${taskId} 状态...`;
+            
+            // Re-use pollTaskStatus logic but just once? 
+            // Or better, just fetch status and alert/log it.
+            // But pollTaskStatus updates UI which is nice.
+            // Let's call the API directly and show result.
+            
+            fetch(`/api/task_status/${taskId}`)
+            .then(res => res.json())
+            .then(data => {
+                const statusStr = `任务 ${taskId} 状态: ${data.status}`;
+                statusDiv.textContent = statusStr;
+                log(statusStr);
+                if (data.status === 'SUCCEEDED') {
+                    statusDiv.style.color = 'green';
+                    alert(`任务成功!\n结果: ${JSON.stringify(data.result)}`);
+                    
+                    // Update UI if it matches current task
+                    const aliyunStatus = document.getElementById('aliyunStatus');
+                    aliyunStatus.textContent = '生成成功！(手动查询)';
+                    aliyunStatus.style.color = 'green';
+                    
+                    const generatedVideoPlayer = document.getElementById('generatedVideoPlayer');
+                    const generatedVideoLink = document.getElementById('generatedVideoLink');
+                    const generatedVideoContainer = document.getElementById('generatedVideoContainer');
+                    
+                    generatedVideoPlayer.src = data.result;
+                    generatedVideoLink.href = data.result;
+                    generatedVideoLink.style.pointerEvents = 'auto';
+                    generatedVideoLink.style.opacity = '1';
+                    generatedVideoLink.classList.remove('secondary');
+                    generatedVideoContainer.style.display = 'block';
+                    
+                    // Update state
+                    saveState({ 
+                        aliyunTask: { 
+                            id: taskId, 
+                            status: 'SUCCEEDED', 
+                            result: data.result 
+                        } 
+                    });
+                    
+                } else if (data.status === 'FAILED') {
+                    statusDiv.style.color = 'red';
+                    alert(`任务失败: ${data.result}`);
+                } else {
+                    statusDiv.style.color = 'orange';
+                    alert(`任务正在进行中: ${data.status}`);
+                }
+            })
+            .catch(e => {
+                statusDiv.textContent = '查询出错: ' + e;
+                statusDiv.style.color = 'red';
+            });
+        }
+
         async function pollTaskStatus(taskId) {
             const aliyunStatus = document.getElementById('aliyunStatus');
             const generatedVideoContainer = document.getElementById('generatedVideoContainer');
