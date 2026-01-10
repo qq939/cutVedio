@@ -495,6 +495,7 @@ def api_comfy_execute():
         data = request.json or {}
         char_filename = data.get('char_filename')
         video_filename = data.get('video_filename')
+        prompt_text = data.get('prompt_text')
         
         if not char_filename:
              char_filename = "lulu.webp" # Default
@@ -510,7 +511,7 @@ def api_comfy_execute():
         if not char_filename or not video_filename:
              return jsonify({'error': 'Could not determine filenames'}), 400
              
-        task_id, error = comfy_utils.queue_workflow_template(char_filename, video_filename)
+        task_id, error = comfy_utils.queue_workflow_template(char_filename, video_filename, prompt_text=prompt_text)
         
         if task_id:
             return jsonify({'message': 'Task queued', 'task_id': task_id})
@@ -661,6 +662,18 @@ def process_video():
         # 3. Trigger Aliyun Image2Video Task (Async via frontend)
         # We just return the URLs and let the frontend trigger the generation to handle the long wait time.
         # This prevents the initial request from timing out.
+        
+        # NOTE: User requested automatic submission to ComfyUI after OBS upload.
+        # But process_video returns JSON to frontend, and frontend polling handles status.
+        # If we submit here, the frontend needs to know the task_id.
+        # So we should submit here and return task_id.
+        
+        print("DEBUG: Auto-submitting to ComfyUI...", flush=True)
+        task_id, error = comfy_utils.submit_job(character_path, downloaded_video_path)
+        if task_id:
+            logger.info(f"Auto-submitted ComfyUI task: {task_id}")
+        else:
+            logger.error(f"Failed to auto-submit ComfyUI task: {error}")
 
         cap = cv2.VideoCapture(downloaded_video_path)
         if not cap.isOpened():
@@ -705,6 +718,7 @@ def process_video():
             'images': saved_files,
             'video_url': f"/video/{video_filename}",
             'original_url': video_url,
+            'task_id': task_id if 'task_id' in locals() else None,
             'upload_urls': {
                 'character': character_url,
                 'video': video_obs_url

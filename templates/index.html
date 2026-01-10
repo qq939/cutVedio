@@ -259,6 +259,13 @@
             <!-- Manual Controls -->
             <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dae0e5;">
                  <div style="font-weight: 600; margin-bottom: 10px; font-size: 14px;">操作控制</div>
+                 
+                 <!-- Prompt Input -->
+                 <div style="margin-bottom: 15px;">
+                     <label for="promptInput" style="display: block; margin-bottom: 5px; font-size: 13px; color: #495057;">提示词 (Prompt):</label>
+                     <textarea id="promptInput" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ced4da; border-radius: 4px; font-family: inherit; font-size: 14px; resize: vertical;" placeholder="请输入提示词，例如: The character is dancing in the room..."></textarea>
+                 </div>
+
                  <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                      <button type="button" class="action-btn" onclick="comfyUploadCharacter()">推送角色图</button>
                      <button type="button" class="action-btn" onclick="comfyUploadVideo()">推送原视频</button>
@@ -287,6 +294,12 @@
 
             if (state.videoUrl) {
                 document.getElementById('videoUrl').value = state.videoUrl;
+            }
+            
+            // Restore Prompt
+            if (state.prompt) {
+                const promptInput = document.getElementById('promptInput');
+                if (promptInput) promptInput.value = state.prompt;
             }
 
             if (state.logs && state.logs.length > 0) {
@@ -430,6 +443,14 @@
             if (videoUrlInput) {
                 videoUrlInput.addEventListener('input', (e) => {
                     saveState({ videoUrl: e.target.value });
+                });
+            }
+            
+            // Add prompt listener
+            const promptInput = document.getElementById('promptInput');
+            if (promptInput) {
+                promptInput.addEventListener('input', (e) => {
+                    saveState({ prompt: e.target.value });
                 });
             }
             
@@ -662,6 +683,29 @@
                         originalLink.textContent = data.original_url;
                     }
 
+                    // Handle Auto-submitted Task
+                    if (data.task_id) {
+                        log(`Auto-submitted task started. Task ID: ${data.task_id}`);
+                        aliyunStatus.textContent = `任务已自动提交 (ID: ${data.task_id})，正在生成中，预计需要20分钟，请耐心等待...`;
+                        
+                        const taskIdDisplay = document.getElementById('taskIdDisplay');
+                        if (taskIdDisplay) taskIdDisplay.textContent = `ID: ${data.task_id}`;
+                        
+                        // Save task info
+                        saveState({ 
+                            aliyunTask: { 
+                                id: data.task_id, 
+                                status: 'PENDING' 
+                            } 
+                        });
+                        
+                        // Start polling
+                        pollTaskStatus(data.task_id);
+                    } else {
+                        // Fallback if not auto-submitted (e.g. error)
+                        aliyunStatus.textContent = '视频处理完成，请手动提交任务';
+                    }
+
                     // Display OBS Links
                     const characterLink = document.getElementById('characterLink');
                     const videoLink = document.getElementById('videoLink');
@@ -799,10 +843,22 @@
         async function comfySubmitTask() {
             const statusDiv = document.getElementById('comfyControlStatus');
             const aliyunStatus = document.getElementById('aliyunStatus');
+            const promptInput = document.getElementById('promptInput');
+            const prompt = promptInput ? promptInput.value : '';
+            
             statusDiv.textContent = '正在提交任务...';
+            statusDiv.style.color = 'blue';
             
             try {
-                const res = await fetch('/api/comfy/execute', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
+                const res = await fetch('/api/comfy/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        prompt_text: prompt
+                    })
+                });
                 const data = await res.json();
                 if (res.ok) {
                     statusDiv.textContent = '任务提交成功 ID: ' + data.task_id;

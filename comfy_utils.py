@@ -105,13 +105,13 @@ class ComfyUIClient:
                     'subfolder': subfolder,
                     'overwrite': 'true' if overwrite else 'false'
                 }
-                logger.info(f"Uploading {file_path} to {url}...")
+                logger.info(f"POST {url} with file={file_path}, data={data}")
                 response = requests.post(url, files=files, data=data)
                 
             if response.status_code == 200:
                 response_data = response.json()
                 # ComfyUI returns the filename (sometimes renamed) and subfolder/type
-                logger.info(f"Upload successful: {response_data}")
+                logger.info(f"Upload response: {response_data}")
                 return response_data
             else:
                 logger.error(f"Upload failed: {response.status_code} - {response.text}")
@@ -129,10 +129,12 @@ class ComfyUIClient:
             data = {"prompt": workflow, "client_id": self.client_id}
             data_json = json.dumps(data).encode('utf-8')
             
+            logger.info(f"POST {url} with workflow (truncated): {str(data)[:200]}...")
+            
             req = urllib.request.Request(url, data=data_json)
             with urllib.request.urlopen(req) as response:
                 result = json.loads(response.read())
-                logger.info(f"Prompt queued. ID: {result.get('prompt_id')}")
+                logger.info(f"Queue prompt response: {result}")
                 return result.get('prompt_id')
         except Exception as e:
             logger.error(f"Queue prompt failed: {e}")
@@ -258,7 +260,7 @@ def submit_job(character_path, video_path):
         logger.error(f"Submit job error: {e}")
         return None, str(e)
 
-def queue_workflow_template(char_filename, video_filename):
+def queue_workflow_template(char_filename, video_filename, prompt_text=None):
     """
     Loads workflow template, updates inputs, and queues prompt.
     """
@@ -279,6 +281,12 @@ def queue_workflow_template(char_filename, video_filename):
         # Node 145: LoadVideo (Video)
         if "145" in workflow:
             workflow["145"]["inputs"]["file"] = video_filename
+            
+        # Node 21: CLIPTextEncode (Positive Prompt)
+        # Only update if prompt_text is provided and not empty
+        if prompt_text and "21" in workflow:
+            logger.info(f"Updating positive prompt with: {prompt_text}")
+            workflow["21"]["inputs"]["text"] = prompt_text
             
         # Randomize seed for KSamplers to ensure new results
         # Nodes: 232:63 and 242:91 (KSampler)
