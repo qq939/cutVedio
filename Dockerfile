@@ -45,5 +45,5 @@ RUN cd /app && /app/venv/bin/pip install --upgrade pip && \
 EXPOSE 7860 5020
 
 # Use the Python interpreter from the virtual environment to run the application
-CMD ["/bin/sh", "-c", "/app/venv/bin/python /app/app.py >> /var/log/obs.log 2>&1"]
+CMD ["/bin/sh", "-c", "/app/venv/bin/python /app/app.py >> /var/log/cutvideo.log 2>&1"]
     
