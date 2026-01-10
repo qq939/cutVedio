@@ -22,3 +22,7 @@ Assistant: Updated jimeng_utils.py to use manual requests.post with Volcengine S
 User: 要保留状体啊，不要每次刷新网页都刷成空白
 Assistant: Implemented state persistence in `templates/index.html` using `localStorage`. Added a "Home" button (SVG icon) to clear the state and reset the application. The state (video URL, logs, processing results, Aliyun task status) is now saved and restored upon page reload.
 
+2026年 1月 10日 星期六
+User: 现在也不用阿里云模型了，改用comfy ui api了，你把comfy_utils完善一下，要求可插拔comfyapi，上传图片，上传视频，将图片和视频的文件名传给对应节点，然后发送任务，取回视频，然后把新视频放到网页上。comfy ui 处理视频的时间大概是20分钟左右。
+Assistant: Created `comfy_utils.py` to interact with ComfyUI API. It supports file upload (images/videos), workflow submission (using the provided JSON template), and task status polling/result downloading. Updated `app.py` to use `comfy_utils` instead of `jimeng_utils`. Updated `templates/index.html` to reflect the switch to ComfyUI, adjusted the polling interval to 10 seconds, and added timestamps to the status message to indicate activity during the long wait. The system now defaults to `127.0.0.1:8188` but respects `COMFYUI_SERVER` env var.
+
