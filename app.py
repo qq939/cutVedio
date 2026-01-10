@@ -615,16 +615,73 @@ def api_overall():
         logger.error(f"Overall API error: {e}")
         return jsonify({'error': str(e)}), 500
 
+def trim_video(input_path, output_path, duration=9):
+    """
+    Trim video to the first `duration` seconds using ffmpeg.
+    """
+    try:
+        # ffmpeg -y -i input.mp4 -t 9 -c copy output.mp4
+        # -y: overwrite output
+        # -i: input
+        # -t: duration
+        # -c copy: copy streams (fast, no re-encoding)
+        # Note: -c copy might be inaccurate for cutting, but fast. 
+        # For precise cutting, we might need re-encoding or at least -c:v libx264
+        # Let's try re-encoding for safety and compatibility with ComfyUI/OBS if codec is weird.
+        # But re-encoding is slow.
+        # Let's try -c copy first, if it fails or produces bad video, switch to re-encoding.
+        # Actually, for "first 9 seconds", -t before -i is faster but less accurate seek. -t after -i is accurate.
+        
+        command = [
+            'ffmpeg', '-y', 
+            '-i', input_path, 
+            '-t', str(duration), 
+            '-c:v', 'libx264', # Re-encode video to ensure compatibility
+            '-c:a', 'aac',     # Re-encode audio
+            '-strict', 'experimental',
+            output_path
+        ]
+        
+        logger.info(f"Trimming video: {' '.join(command)}")
+        result = subprocess.run(command, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            logger.info(f"Video trimmed successfully: {output_path}")
+            return True
+        else:
+            logger.error(f"FFmpeg failed: {result.stderr}")
+            return False
+    except Exception as e:
+        logger.error(f"Trim video error: {e}")
+        return False
+
 def _run_processing_pipeline(video_path, source_name):
     """
     Common pipeline for processing a video file (local path).
-    1. Upload character to OBS (if not already?) - Actually we do it here.
-    2. Upload video to OBS.
-    3. Submit to ComfyUI.
-    4. Extract frames.
-    5. Return result dict.
+    1. Trim video to 9 seconds.
+    2. Upload character to OBS.
+    3. Upload trimmed video to OBS.
+    4. Submit to ComfyUI.
+    5. Extract frames.
+    6. Return result dict.
     """
     try:
+        # 0. Trim Video
+        logger.info(f"Trimming video {video_path} to 9 seconds...")
+        # Create a new filename for trimmed video
+        dir_name = os.path.dirname(video_path)
+        base_name = os.path.basename(video_path)
+        name, ext = os.path.splitext(base_name)
+        trimmed_filename = f"{name}_trimmed{ext}"
+        trimmed_path = os.path.join(dir_name, trimmed_filename)
+        
+        if trim_video(video_path, trimmed_path, duration=9):
+            logger.info(f"Using trimmed video: {trimmed_path}")
+            # Use trimmed video for subsequent steps
+            video_path = trimmed_path
+        else:
+            logger.warning("Trimming failed, using original video.")
+
         # 1. Convert and upload character image (face/lulu.webp -> OBS)
         print("DEBUG: Starting character upload...", flush=True)
         character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')

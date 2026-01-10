@@ -567,10 +567,6 @@
                 } else {
                     statusDiv.innerHTML = `角色图片推送成功! <a href="${data.url}" target="_blank">链接</a>`;
                     statusDiv.style.color = 'green';
-                    // Update character link if hidden
-                    const link = document.getElementById('characterLink');
-                    link.href = data.url;
-                    link.style.display = 'inline';
                 }
             })
             .catch(error => {
@@ -593,10 +589,6 @@
                 } else {
                     statusDiv.innerHTML = `视频推送成功! <a href="${data.url}" target="_blank">链接</a>`;
                     statusDiv.style.color = 'green';
-                    // Update video link if hidden
-                    const link = document.getElementById('videoLink');
-                    link.href = data.url;
-                    link.style.display = 'inline';
                 }
             })
             .catch(error => {
