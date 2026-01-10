@@ -172,8 +172,11 @@ def create_jimeng_task(image_url: str, video_url: str):
         print(f"📝 响应：{response_text}", flush=True)
 
         resp_json = json.loads(response_text) if response_text else {}
-        if response.status_code == 200 and "Result" in resp_json:
-            task_id = resp_json["Result"].get("TaskId")
+        if response.status_code == 200 and ("Result" in resp_json or "data" in resp_json):
+            # Check for TaskId in Result or data
+            result_data = resp_json.get("Result") or resp_json.get("data")
+            task_id = result_data.get("TaskId") or result_data.get("task_id")
+            
             if task_id:
                 print(f"\n🎉 成功！TaskId：{task_id}")
                 return task_id
@@ -191,9 +194,86 @@ def create_jimeng_task(image_url: str, video_url: str):
         print(f"❌ 详情：{traceback.format_exc()}")
         return None
 
-# ========== 测试调用 ==========
-if __name__ == "__main__":
-    # 确保URL为纯ASCII
-    TEST_IMAGE_URL = "https://obs.dimond.top/character.png"
-    TEST_VIDEO_URL = "https://obs.dimond.top/reference.mp4"
-    create_jimeng_task(TEST_IMAGE_URL, TEST_VIDEO_URL)
+def check_task_status(task_id):
+    """
+    Checks the status of a Jimeng task.
+    Uses manual signing.
+    """
+    if not VOLC_ACCESS_KEY or not VOLC_SECRET_KEY:
+        return 'FAILED', 'Missing API Key'
+
+    query_params = {
+        "Action": "GetVisualTask", # Assuming this is the correct action for polling
+        "Version": "2024-01-01",
+        "Region": "cn-north-1"
+    }
+    
+    # Payload
+    payload = {
+        "TaskId": task_id
+    }
+    payload_str = json.dumps(payload, separators=(',', ':'), ensure_ascii=True)
+    
+    # Headers
+    headers = {
+        "Content-Type": "application/json; charset=ASCII",
+        "Host": "visual.volcengineapi.com",
+        "Accept": "application/json; charset=ASCII"
+    }
+    
+    # Sign
+    query_str = urlencode(query_params, quote_via=quote_plus)
+    final_url = f"{ENDPOINT}?{query_str}"
+    
+    try:
+        headers = generate_official_authorization(
+            ak=VOLC_ACCESS_KEY,
+            sk=VOLC_SECRET_KEY,
+            method="POST",
+            url=final_url,
+            headers=headers,
+            body=payload_str
+        )
+        
+        response = requests.post(
+            url=final_url,
+            headers=headers,
+            data=payload_str.encode("ASCII"),
+            timeout=60,
+            verify=True
+        )
+        
+        response_text = response.content.decode("utf-8", errors="ignore")
+        resp_json = json.loads(response_text) if response_text else {}
+        
+        if response.status_code == 200:
+            # Structure might be data -> status
+            data = resp_json.get("data") or resp_json.get("Result")
+            if data:
+                status = data.get("status") or data.get("Status")
+                
+                if status == "ProcessSuccess" or status == "SUCCEEDED":
+                    res_data = data.get("resp_data") or data.get("ResultData")
+                    if isinstance(res_data, str):
+                        try:
+                            res_data = json.loads(res_data)
+                        except:
+                            pass
+                    
+                    video_url = None
+                    if isinstance(res_data, dict):
+                        video_url = res_data.get("video_url") or res_data.get("VideoUrl")
+                    
+                    return 'SUCCEEDED', video_url
+                elif status == "ProcessFail" or status == "FAILED":
+                    return 'FAILED', data.get("fail_reason", "Unknown failure")
+                else:
+                    return 'RUNNING', None
+            else:
+                return 'UNKNOWN', str(resp_json)
+        else:
+            return 'UNKNOWN', str(resp_json)
+            
+    except Exception as e:
+        print(f"Check status error: {e}")
+        return 'UNKNOWN', str(e)

@@ -113,6 +113,54 @@
             border-radius: 4px;
             border: 1px solid #eee;
         }
+
+        .card {
+            background-color: #fff;
+            border: 1px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 25px;
+            text-align: left;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .card-title {
+            margin: 0;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .action-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .action-btn.secondary {
+            background-color: #6c757d;
+        }
+        .action-btn.secondary:hover {
+            background-color: #545b62;
+        }
     </style>
 </head>
 <body>
@@ -173,10 +221,9 @@
         </div>
 
         <!-- AI Generation Section -->
-        <div id="aliyunContainer" class="card" style="display: none; background-color: #f0f8ff; border-color: #cce5ff;">
+        <div id="aliyunContainer" class="card" style="display: block; background-color: #f0f8ff; border-color: #cce5ff;">
             <div class="card-header" style="border-bottom-color: #dae0e5;">
                 <h3 class="card-title">AI 视频生成 (ComfyUI)</h3>
-                <button id="retryComfyBtn" class="action-btn secondary" onclick="retryComfyTask()" style="display: none; font-size: 12px;">手动重试任务</button>
             </div>
             
             <div id="aliyunStatus" style="margin-bottom: 15px; font-size: 14px; color: #495057;">等待开始...</div>
@@ -185,9 +232,18 @@
                 <video id="generatedVideoPlayer" controls style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
                     Your browser does not support the video tag.
                 </video>
-                <div>
-                    <a id="generatedVideoLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-weight: bold;">下载生成的视频</a>
-                </div>
+            </div>
+            
+            <!-- Manual Controls -->
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #dae0e5;">
+                 <div style="font-weight: 600; margin-bottom: 10px; font-size: 14px;">操作控制</div>
+                 <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                     <button type="button" class="action-btn" onclick="comfyUploadCharacter()">推送角色图</button>
+                     <button type="button" class="action-btn" onclick="comfyUploadVideo()">推送原视频</button>
+                     <button type="button" class="action-btn" onclick="comfySubmitTask()">提交生成任务</button>
+                     <a id="generatedVideoLink" href="#" target="_blank" class="action-btn secondary" style="text-decoration: none; pointer-events: none; opacity: 0.6;">下载生成的视频</a>
+                 </div>
+                 <div id="comfyControlStatus" style="margin-top: 8px; font-size: 12px; color: #666;"></div>
             </div>
         </div>
     </div>
@@ -237,6 +293,7 @@
             if (state.aliyunTask) {
                 const aliyunContainer = document.getElementById('aliyunContainer');
                 const aliyunStatus = document.getElementById('aliyunStatus');
+                
                 aliyunContainer.style.display = 'block';
                 
                 if (state.aliyunTask.status === 'SUCCEEDED') {
@@ -248,6 +305,9 @@
                     
                     generatedVideoPlayer.src = state.aliyunTask.result;
                     generatedVideoLink.href = state.aliyunTask.result;
+                    generatedVideoLink.style.pointerEvents = 'auto';
+                    generatedVideoLink.style.opacity = '1';
+                    generatedVideoLink.classList.remove('secondary');
                     generatedVideoContainer.style.display = 'block';
                 } else if (state.aliyunTask.status === 'FAILED') {
                      aliyunStatus.textContent = '生成失败: ' + state.aliyunTask.result;
@@ -308,6 +368,10 @@
                     videoLink.style.display = 'inline-block';
                 }
                 r2Container.style.display = 'block';
+                
+                // Show AI container even if not started yet (Placeholder)
+                const aliyunContainer = document.getElementById('aliyunContainer');
+                aliyunContainer.style.display = 'block';
             }
         }
 
@@ -440,7 +504,8 @@
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
             r2Container.style.display = 'none';
-            aliyunContainer.style.display = 'none';
+            // aliyunContainer.style.display = 'none'; // Keep visible as placeholder
+            aliyunStatus.textContent = '等待视频处理...';
             generatedVideoContainer.style.display = 'none';
             videoPlayer.src = '';
             submitBtn.disabled = true;
@@ -508,6 +573,9 @@
                         }
                         r2Container.style.display = 'block';
                         
+                        // Show AI container even if not started yet (Placeholder)
+                        aliyunContainer.style.display = 'block';
+
                         // Trigger Aliyun Task automatically if both URLs are present
                         if (charUrl && vidUrl) {
                             startAliyunTask(charUrl, vidUrl);
@@ -520,6 +588,11 @@
                 statusDiv.textContent = '请求失败: ' + error.message;
             } finally {
                 submitBtn.disabled = false;
+                // Always show AI container as placeholder
+                aliyunContainer.style.display = 'block';
+                if (aliyunStatus.textContent === '等待开始...') {
+                     aliyunStatus.textContent = '请手动操作或重新开始';
+                }
             }
         }
         
@@ -649,7 +722,7 @@
             const generatedVideoPlayer = document.getElementById('generatedVideoPlayer');
             const generatedVideoLink = document.getElementById('generatedVideoLink');
             
-            const intervalId = setInterval(async () => {
+            const checkStatus = async () => {
                 try {
                     const response = await fetch(`/api/task_status/${taskId}`);
                     const data = await response.json();
@@ -659,12 +732,15 @@
                         log(`Task ${taskId} status: ${status}`);
                         
                         if (status === 'SUCCEEDED') {
-                            clearInterval(intervalId);
+                            if (window.taskPollInterval) clearInterval(window.taskPollInterval);
                             aliyunStatus.textContent = '生成成功！';
                             aliyunStatus.style.color = 'green';
                             
                             generatedVideoPlayer.src = data.result;
                             generatedVideoLink.href = data.result;
+                            generatedVideoLink.style.pointerEvents = 'auto';
+                            generatedVideoLink.style.opacity = '1';
+                            generatedVideoLink.classList.remove('secondary');
                             generatedVideoContainer.style.display = 'block';
                             log(`Video generated: ${data.result}`);
                             
@@ -677,7 +753,7 @@
                                 } 
                             });
                         } else if (status === 'FAILED') {
-                            clearInterval(intervalId);
+                            if (window.taskPollInterval) clearInterval(window.taskPollInterval);
                             aliyunStatus.textContent = '生成失败: ' + data.result;
                             aliyunStatus.style.color = 'red';
                             log(`Task failed: ${data.result}`);
@@ -701,7 +777,13 @@
                 } catch (error) {
                     log(`Poll error: ${error.message}`);
                 }
-            }, 10000); // Poll every 10 seconds (increased from 5s)
+            };
+
+            // Clear existing interval if any
+            if (window.taskPollInterval) clearInterval(window.taskPollInterval);
+            
+            checkStatus(); // Check immediately
+            window.taskPollInterval = setInterval(checkStatus, 10000); // Poll every 10 seconds
         }
     </script>
 </body>
