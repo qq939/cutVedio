@@ -1,4 +1,4 @@
 
 2026年 1月 11日 星期日
-User: 仍然报错：Failed to upload video. Check logs. 但是日志文件没有相应的记录，请修复bug，并且通过print flush=true来打印相关日志。
-Assistant: Enhanced logging in `obs_utils.py` and `app.py` by adding `print(..., flush=True)` and `logger` calls. Created a test script `tests/test_upload.py` to verify logging behavior on upload failure. Verified that logs are correctly output to stdout and stderr.
+User: 手动提交生成任务时候，如果之前的任务还在running状态，向comfyUI提交终止之前 自动提交的任务。
+Assistant: Verified and refined the task cancellation logic. Created `tests/test_cancel_task.py` to confirm that `cancel_task` correctly attempts to delete pending tasks and interrupt running tasks. Updated `app.py` to log the result of the cancellation attempt.

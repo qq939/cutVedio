@@ -512,7 +512,9 @@ def api_comfy_execute():
         cancel_task_id = data.get('cancel_task_id')
         if cancel_task_id:
             logger.info(f"Cancelling previous task: {cancel_task_id}")
-            comfy_utils.cancel_job(cancel_task_id)
+            result = comfy_utils.cancel_job(cancel_task_id)
+            logger.info(f"Cancellation result for {cancel_task_id}: {result}")
+            print(f"DEBUG: Cancelled task {cancel_task_id}, result: {result}", flush=True)
             
         # We assume files are already uploaded and we know their names or use defaults?
         # comfy_utils.queue_workflow_template needs filenames.
