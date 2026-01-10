@@ -592,11 +592,11 @@
             saveState({ logs: logs });
         }
 
-        async function processVideo() {
-            const videoUrl = document.getElementById('videoUrl').value;
+        async function processVideo(mode = 'url') {
             const statusDiv = document.getElementById('status');
             const galleryDiv = document.getElementById('gallery');
             const submitBtn = document.getElementById('submitBtn');
+            const submitBtnFile = document.getElementById('submitBtnFile');
             const videoContainer = document.getElementById('videoContainer');
             const videoPlayer = document.getElementById('videoPlayer');
             const originalLink = document.getElementById('originalLink');
@@ -605,13 +605,28 @@
             const aliyunStatus = document.getElementById('aliyunStatus');
             const generatedVideoContainer = document.getElementById('generatedVideoContainer');
             
-            if (!videoUrl) {
-                alert('请输入视频 URL');
-                return;
-            }
+            let formData = new FormData();
+            let logMsg = '';
 
-            // Save input
-            saveState({ videoUrl: videoUrl });
+            if (mode === 'url') {
+                const videoUrl = document.getElementById('videoUrl').value;
+                if (!videoUrl) {
+                    alert('请输入视频 URL');
+                    return;
+                }
+                formData.append('url', videoUrl);
+                logMsg = `Starting process for URL: ${videoUrl}`;
+                // Save input
+                saveState({ videoUrl: videoUrl });
+            } else {
+                const fileInput = document.getElementById('videoFileInput');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('请选择视频文件');
+                    return;
+                }
+                formData.append('video', fileInput.files[0]);
+                logMsg = `Starting process for file: ${fileInput.files[0].name}`;
+            }
 
             // Reset UI and State
             statusDiv.textContent = '正在处理中，请稍候...';
@@ -622,34 +637,25 @@
             localStorage.setItem(STATE_KEY, JSON.stringify(state));
 
             try {
-                log(`Starting process for: ${videoUrl}`);
+                log(logMsg);
             } catch (e) {
                 console.error("Log failed", e);
             }
             galleryDiv.innerHTML = '';
             videoContainer.style.display = 'none';
-            // r2Container is inside videoContainer now, so hiding videoContainer hides it too.
-            // But we can reset its display to none if we want it hidden initially when video appears.
-            r2Container.style.display = 'block'; // Or 'none' if we want to wait for upload?
-            // Actually, the manual upload buttons are useful even before automatic upload succeeds if that fails.
-            // But usually we only have the video file locally after processVideo succeeds.
-            // So we should probably hide it until process is done? 
-            // But processVideo is async and updates UI when done.
-            // Let's reset it here.
             r2Container.style.display = 'none'; 
             
-            // aliyunContainer.style.display = 'none'; // Keep visible as placeholder
             aliyunStatus.textContent = '等待视频处理...';
             generatedVideoContainer.style.display = 'none';
             videoPlayer.src = '';
             submitBtn.disabled = true;
+            if (submitBtnFile) submitBtnFile.disabled = true;
 
             try {
-                const formData = new FormData();
-                formData.append('url', videoUrl);
-
                 log('Sending request to server...');
-                const response = await fetch('/process', {
+                let endpoint = mode === 'url' ? '/process' : '/process_upload';
+                
+                const response = await fetch(endpoint, {
                     method: 'POST',
                     body: formData
                 });
@@ -666,26 +672,28 @@
 
                     // Display images
                     const timestamp = new Date().getTime();
-                    data.images.forEach(imageSrc => {
-                        const img = document.createElement('img');
-                        // Add timestamp to prevent caching
-                        img.src = `${imageSrc}?t=${timestamp}`;
-                        galleryDiv.appendChild(img);
-                    });
+                    if (data.images) {
+                        data.images.forEach(imageSrc => {
+                            const img = document.createElement('img');
+                            // Add timestamp to prevent caching
+                            img.src = `${imageSrc}?t=${timestamp}`;
+                            galleryDiv.appendChild(img);
+                        });
+                    }
                     
                     // Display video
                     if (data.video_url) {
                         videoPlayer.src = `${data.video_url}?t=${timestamp}`;
                         videoContainer.style.display = 'block';
                         
-                        // Show controls immediately when video is ready, so user can manually upload if auto fails
+                        // Show controls immediately when video is ready
                         if (r2Container) r2Container.style.display = 'block';
                     }
 
                     // Set original link
                     if (data.original_url) {
-                        originalLink.href = data.original_url;
-                        originalLink.textContent = data.original_url;
+                        originalLink.href = mode === 'url' ? data.original_url : '#';
+                        originalLink.textContent = mode === 'url' ? data.original_url : '本地上传文件';
                     }
 
                     // Handle Auto-submitted Task
@@ -712,34 +720,9 @@
                     }
 
                     // Display OBS Links
-                    const characterLink = document.getElementById('characterLink');
-                    const videoLink = document.getElementById('videoLink');
-                    
                     if (data.upload_urls) {
-                        let charUrl = '';
-                        let vidUrl = '';
-                        
-                        if (data.upload_urls.character) {
-                            charUrl = data.upload_urls.character;
-                            characterLink.href = charUrl;
-                            characterLink.textContent = '角色图片';
-                            characterLink.style.display = 'inline-block';
-                        }
-                        if (data.upload_urls.video) {
-                            vidUrl = data.upload_urls.video;
-                            videoLink.href = vidUrl;
-                            videoLink.textContent = '处理视频';
-                            videoLink.style.display = 'inline-block';
-                        }
                         r2Container.style.display = 'block';
-                        
-                        // Show AI container even if not started yet (Placeholder)
                         aliyunContainer.style.display = 'block';
-
-                        // Trigger Aliyun Task automatically if both URLs are present
-                        if (charUrl && vidUrl) {
-                            startAliyunTask(charUrl, vidUrl);
-                        }
                     }
                 } else {
                     statusDiv.textContent = '错误: ' + data.error;
@@ -748,6 +731,7 @@
                 statusDiv.textContent = '请求失败: ' + error.message;
             } finally {
                 submitBtn.disabled = false;
+                if (submitBtnFile) submitBtnFile.disabled = false;
                 // Always show AI container as placeholder
                 aliyunContainer.style.display = 'block';
                 if (aliyunStatus.textContent === '等待开始...') {
