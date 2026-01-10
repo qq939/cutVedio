@@ -528,6 +528,7 @@
             const aliyunStatus = document.getElementById('aliyunStatus');
             
             aliyunContainer.style.display = 'block';
+            
             aliyunStatus.textContent = '正在提交 ComfyUI 视频生成任务...';
             log('Submitting ComfyUI task...');
             
@@ -565,6 +566,80 @@
             } catch (error) {
                 aliyunStatus.textContent = '请求错误: ' + error.message;
                 log(`ComfyUI task request error: ${error.message}`);
+            }
+        }
+        
+        // Manual ComfyUI Controls
+        async function comfyUploadCharacter() {
+            const statusDiv = document.getElementById('comfyControlStatus');
+            statusDiv.textContent = '正在推送角色图...';
+            try {
+                const res = await fetch('/api/comfy/upload_character', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.textContent = '角色图推送成功: ' + data.filename;
+                    statusDiv.style.color = 'green';
+                    // Save filename to state if needed?
+                } else {
+                    statusDiv.textContent = '推送失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (e) {
+                statusDiv.textContent = '请求错误: ' + e;
+                statusDiv.style.color = 'red';
+            }
+        }
+
+        async function comfyUploadVideo() {
+            const statusDiv = document.getElementById('comfyControlStatus');
+            statusDiv.textContent = '正在推送原视频...';
+            try {
+                const res = await fetch('/api/comfy/upload_video', { method: 'POST' });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.textContent = '视频推送成功: ' + data.filename;
+                    statusDiv.style.color = 'green';
+                } else {
+                    statusDiv.textContent = '推送失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (e) {
+                statusDiv.textContent = '请求错误: ' + e;
+                statusDiv.style.color = 'red';
+            }
+        }
+
+        async function comfySubmitTask() {
+            const statusDiv = document.getElementById('comfyControlStatus');
+            const aliyunStatus = document.getElementById('aliyunStatus');
+            statusDiv.textContent = '正在提交任务...';
+            
+            try {
+                const res = await fetch('/api/comfy/execute', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({}) });
+                const data = await res.json();
+                if (res.ok) {
+                    statusDiv.textContent = '任务提交成功 ID: ' + data.task_id;
+                    statusDiv.style.color = 'green';
+                    
+                    aliyunStatus.textContent = `任务已提交 (ID: ${data.task_id})，正在生成中...`;
+                    
+                     // Save task info
+                    saveState({ 
+                        aliyunTask: { 
+                            id: data.task_id, 
+                            status: 'PENDING' 
+                        } 
+                    });
+                    
+                    pollTaskStatus(data.task_id);
+                    
+                } else {
+                    statusDiv.textContent = '提交失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                }
+            } catch (e) {
+                statusDiv.textContent = '请求错误: ' + e;
+                statusDiv.style.color = 'red';
             }
         }
         

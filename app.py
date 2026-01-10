@@ -11,8 +11,7 @@ from dotenv import load_dotenv
 from flask import Flask, render_template, request, jsonify, send_from_directory
 from playwright.sync_api import sync_playwright
 import obs_utils
-import aliyun_utils
-import jimeng_utils
+import comfy_utils
 
 load_dotenv()
 
@@ -387,6 +386,81 @@ def api_task_status(task_id):
         return jsonify({'status': status, 'result': result})
     except Exception as e:
         logger.error(f"Task status API error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comfy/upload_character', methods=['POST'])
+def api_comfy_upload_character():
+    try:
+        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+        if not os.path.exists(character_path):
+             return jsonify({'error': 'Character file not found'}), 404
+             
+        res = comfy_utils.client.upload_file(character_path, overwrite=True)
+        if res:
+            return jsonify({'message': 'Character uploaded to ComfyUI', 'filename': res.get('name')})
+        else:
+            return jsonify({'error': 'Failed to upload character'}), 500
+    except Exception as e:
+        logger.error(f"Comfy upload character error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comfy/upload_video', methods=['POST'])
+def api_comfy_upload_video():
+    try:
+        files = glob.glob(os.path.join(VIDEO_FOLDER, '*.*'))
+        video_files = [f for f in files if not os.path.basename(f).startswith('.')]
+        if not video_files:
+             return jsonify({'error': 'No local video file found'}), 404
+             
+        video_files.sort(key=os.path.getmtime, reverse=True)
+        video_path = video_files[0]
+        
+        res = comfy_utils.client.upload_file(video_path, overwrite=True)
+        if res:
+            return jsonify({'message': 'Video uploaded to ComfyUI', 'filename': res.get('name')})
+        else:
+            return jsonify({'error': 'Failed to upload video'}), 500
+    except Exception as e:
+        logger.error(f"Comfy upload video error: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/comfy/execute', methods=['POST'])
+def api_comfy_execute():
+    try:
+        # We assume files are already uploaded and we know their names or use defaults?
+        # comfy_utils.queue_workflow_template needs filenames.
+        # But here we don't know the exact filenames ComfyUI assigned unless frontend sends them.
+        # But typically ComfyUI keeps the filename.
+        # Let's re-resolve filenames from local paths as best guess or use params.
+        
+        # Option: Frontend sends filenames if available, else we guess.
+        data = request.json or {}
+        char_filename = data.get('char_filename')
+        video_filename = data.get('video_filename')
+        
+        if not char_filename:
+             char_filename = "lulu.webp" # Default
+        
+        if not video_filename:
+             # Guess from local video
+             files = glob.glob(os.path.join(VIDEO_FOLDER, '*.*'))
+             video_files = [f for f in files if not os.path.basename(f).startswith('.')]
+             if video_files:
+                 video_files.sort(key=os.path.getmtime, reverse=True)
+                 video_filename = os.path.basename(video_files[0])
+        
+        if not char_filename or not video_filename:
+             return jsonify({'error': 'Could not determine filenames'}), 400
+             
+        task_id, error = comfy_utils.queue_workflow_template(char_filename, video_filename)
+        
+        if task_id:
+            return jsonify({'message': 'Task queued', 'task_id': task_id})
+        else:
+            return jsonify({'error': f'Failed to queue task: {error}'}), 500
+            
+    except Exception as e:
+        logger.error(f"Comfy execute error: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/process', methods=['POST'])

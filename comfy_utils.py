@@ -162,6 +162,17 @@ def submit_job(character_path, video_path):
         char_filename = char_res.get('name')
         video_filename = video_res.get('name')
         
+        return queue_workflow_template(char_filename, video_filename)
+            
+    except Exception as e:
+        logger.error(f"Submit job error: {e}")
+        return None, str(e)
+
+def queue_workflow_template(char_filename, video_filename):
+    """
+    Loads workflow template, updates inputs, and queues prompt.
+    """
+    try:
         # 2. Load workflow
         workflow_path = os.path.join(os.path.dirname(__file__), 'comfyapi', '视频换人video_wan2_2_14B_animate.json')
         if not os.path.exists(workflow_path):
@@ -197,9 +208,8 @@ def submit_job(character_path, video_path):
             return prompt_id, None
         else:
             return None, "Failed to queue prompt"
-            
     except Exception as e:
-        logger.error(f"Submit job error: {e}")
+        logger.error(f"Queue workflow template error: {e}")
         return None, str(e)
 
 def check_status(prompt_id):
