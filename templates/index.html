@@ -190,7 +190,12 @@
         
         <div class="input-group">
             <input type="text" id="videoUrl" placeholder="请输入视频 URL (例如 Douyin 链接)">
-            <button id="submitBtn" onclick="processVideo()">提交</button>
+            <button id="submitBtn" onclick="processVideo('url')">提交 URL</button>
+        </div>
+
+        <div class="input-group">
+            <input type="file" id="videoFileInput" accept="video/*" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
+            <button id="submitBtnFile" onclick="processVideo('file')">上传视频文件</button>
         </div>
 
         <!-- Debug Console -->

@@ -170,10 +170,22 @@ def download_video(url, output_dir):
     }
     
     try:
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            return filename
+        try:
+            logger.info("Attempting download with cookies...")
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                return filename
+        except Exception as cookie_error:
+            logger.warning(f"Download with cookies failed: {cookie_error}. Retrying without cookies...")
+            # Remove cookies and retry
+            if 'cookiesfrombrowser' in ydl_opts:
+                del ydl_opts['cookiesfrombrowser']
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=True)
+                filename = ydl.prepare_filename(info)
+                return filename
     except Exception as e:
         # Fallback for Douyin if yt-dlp fails
         if 'douyin' in url:
@@ -603,28 +615,15 @@ def api_overall():
         logger.error(f"Overall API error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/process', methods=['POST'])
-def process_video():
-    print("DEBUG: Received process_video request", flush=True)
-    raw_input = request.form.get('url')
-    if not raw_input:
-        print("DEBUG: No input provided", flush=True)
-        return jsonify({'error': 'No input provided'}), 400
-
-    # Extract URL from input text using regex
-    # Matches http:// or https:// followed by non-whitespace characters
-    url_match = re.search(r'(https?://[^\s]+)', raw_input)
-    if url_match:
-        video_url = url_match.group(1)
-        print(f"DEBUG: Extracted URL: {video_url} from input: {raw_input}", flush=True)
-        logger.info(f"Extracted URL: {video_url} from input: {raw_input}")
-    else:
-        # If no URL found, assume the input is the URL itself (fallback)
-        video_url = raw_input.strip()
-        print(f"DEBUG: No URL pattern found, using raw input: {video_url}", flush=True)
-        logger.warning(f"No URL pattern found, using raw input: {video_url}")
-
-    downloaded_video_path = None
+def _run_processing_pipeline(video_path, source_name):
+    """
+    Common pipeline for processing a video file (local path).
+    1. Upload character to OBS (if not already?) - Actually we do it here.
+    2. Upload video to OBS.
+    3. Submit to ComfyUI.
+    4. Extract frames.
+    5. Return result dict.
+    """
     try:
         # 1. Convert and upload character image (face/lulu.webp -> OBS)
         print("DEBUG: Starting character upload...", flush=True)
@@ -633,51 +632,25 @@ def process_video():
         print(f"DEBUG: Character upload result: {character_url}", flush=True)
         logger.info(f"Character uploaded to: {character_url}")
         
-        # Clear previous frames
-        print("DEBUG: Clearing previous frames...", flush=True)
-        for f in os.listdir(IMAGE_FOLDER):
-            file_path = os.path.join(IMAGE_FOLDER, f)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        
-        # Clear previous videos
-        print("DEBUG: Clearing previous videos...", flush=True)
-        for f in os.listdir(VIDEO_FOLDER):
-            file_path = os.path.join(VIDEO_FOLDER, f)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
-        
-        # Download video using yt-dlp to VIDEO_FOLDER
-        print(f"DEBUG: Starting video download from {video_url}...", flush=True)
-        downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
-        print(f"DEBUG: Video downloaded to {downloaded_video_path}", flush=True)
-        
-        # 2. Upload downloaded video to OBS
-        video_filename = os.path.basename(downloaded_video_path)
+        # 2. Upload video to OBS
+        video_filename = os.path.basename(video_path)
         print(f"DEBUG: Starting video upload to OBS ({video_filename})...", flush=True)
-        video_obs_url = obs_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
+        video_obs_url = obs_utils.upload_file(video_path, 'reference.mp4', mime_type='video/mp4')
         print(f"DEBUG: Video upload result: {video_obs_url}", flush=True)
         logger.info(f"Video uploaded to: {video_obs_url}")
         
         # 3. Trigger Aliyun Image2Video Task (Async via frontend)
-        # We just return the URLs and let the frontend trigger the generation to handle the long wait time.
-        # This prevents the initial request from timing out.
-        
-        # NOTE: User requested automatic submission to ComfyUI after OBS upload.
-        # But process_video returns JSON to frontend, and frontend polling handles status.
-        # If we submit here, the frontend needs to know the task_id.
-        # So we should submit here and return task_id.
-        
         print("DEBUG: Auto-submitting to ComfyUI...", flush=True)
-        task_id, error = comfy_utils.submit_job(character_path, downloaded_video_path)
+        task_id, error = comfy_utils.submit_job(character_path, video_path)
         if task_id:
             logger.info(f"Auto-submitted ComfyUI task: {task_id}")
         else:
             logger.error(f"Failed to auto-submit ComfyUI task: {error}")
 
-        cap = cv2.VideoCapture(downloaded_video_path)
+        # 4. Extract frames
+        cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-             return jsonify({'error': 'Could not open downloaded video'}), 400
+             return {'error': 'Could not open video file'}, 400
              
         fps = cap.get(cv2.CAP_PROP_FPS)
         if fps == 0:
@@ -710,20 +683,110 @@ def process_video():
 
         cap.release()
         
-        # Do not delete the downloaded video file, we want to display it
-        # video_filename is already defined above
-        
-        return jsonify({
+        return {
             'message': f'Successfully extracted {saved_count} frames. Uploaded to OBS.',
             'images': saved_files,
             'video_url': f"/video/{video_filename}",
-            'original_url': video_url,
-            'task_id': task_id if 'task_id' in locals() else None,
+            'original_url': source_name,
+            'task_id': task_id,
             'upload_urls': {
                 'character': character_url,
                 'video': video_obs_url
             }
-        })
+        }, 200
+
+    except Exception as e:
+        logger.error(f"Pipeline processing failed: {e}")
+        return {'error': str(e)}, 500
+
+@app.route('/process_upload', methods=['POST'])
+def process_upload_video():
+    print("DEBUG: Received process_upload request", flush=True)
+    
+    if 'video' not in request.files:
+        return jsonify({'error': 'No video file provided'}), 400
+        
+    file = request.files['video']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+        
+    try:
+        # Clear previous frames
+        for f in os.listdir(IMAGE_FOLDER):
+            file_path = os.path.join(IMAGE_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        
+        # Clear previous videos
+        for f in os.listdir(VIDEO_FOLDER):
+            file_path = os.path.join(VIDEO_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                
+        # Save uploaded file
+        # Use a safe filename or keep original? Let's use standard name to avoid issues?
+        # But we need extension.
+        ext = os.path.splitext(file.filename)[1]
+        if not ext:
+            ext = '.mp4'
+        
+        filename = f"uploaded_video{ext}"
+        video_path = os.path.join(VIDEO_FOLDER, filename)
+        file.save(video_path)
+        
+        logger.info(f"Saved uploaded video to {video_path}")
+        
+        result, status_code = _run_processing_pipeline(video_path, file.filename)
+        return jsonify(result), status_code
+        
+    except Exception as e:
+        logger.error(f"Process upload failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/process', methods=['POST'])
+def process_video():
+    print("DEBUG: Received process_video request", flush=True)
+    raw_input = request.form.get('url')
+    if not raw_input:
+        print("DEBUG: No input provided", flush=True)
+        return jsonify({'error': 'No input provided'}), 400
+
+    # Extract URL from input text using regex
+    # Matches http:// or https:// followed by non-whitespace characters
+    url_match = re.search(r'(https?://[^\s]+)', raw_input)
+    if url_match:
+        video_url = url_match.group(1)
+        print(f"DEBUG: Extracted URL: {video_url} from input: {raw_input}", flush=True)
+        logger.info(f"Extracted URL: {video_url} from input: {raw_input}")
+    else:
+        # If no URL found, assume the input is the URL itself (fallback)
+        video_url = raw_input.strip()
+        print(f"DEBUG: No URL pattern found, using raw input: {video_url}", flush=True)
+        logger.warning(f"No URL pattern found, using raw input: {video_url}")
+
+    downloaded_video_path = None
+    try:
+        # Clear previous frames
+        print("DEBUG: Clearing previous frames...", flush=True)
+        for f in os.listdir(IMAGE_FOLDER):
+            file_path = os.path.join(IMAGE_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        
+        # Clear previous videos
+        print("DEBUG: Clearing previous videos...", flush=True)
+        for f in os.listdir(VIDEO_FOLDER):
+            file_path = os.path.join(VIDEO_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+        
+        # Download video using yt-dlp to VIDEO_FOLDER
+        print(f"DEBUG: Starting video download from {video_url}...", flush=True)
+        downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
+        print(f"DEBUG: Video downloaded to {downloaded_video_path}", flush=True)
+        
+        result, status_code = _run_processing_pipeline(downloaded_video_path, video_url)
+        return jsonify(result), status_code
 
     except Exception as e:
         # Clean up if error
