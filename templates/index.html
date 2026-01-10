@@ -229,7 +229,7 @@
 
         <div class="input-group">
             <input type="file" id="videoFileInput" accept="video/*" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 8px;">
-            <button id="submitBtnFile" onclick="processVideo('file')">上传视频文件</button>
+            <button id="submitBtnFile" onclick="processVideo('file')">上传视频</button>
         </div>
 
         <!-- Debug Console -->
@@ -861,6 +861,14 @@
             const promptInput = document.getElementById('promptInput');
             const prompt = promptInput ? promptInput.value : '';
             
+            // Check for existing auto-submitted task to cancel
+            let cancelTaskId = null;
+            const state = JSON.parse(localStorage.getItem(STATE_KEY) || '{}');
+            if (state.aliyunTask && state.aliyunTask.id && state.aliyunTask.status !== 'SUCCEEDED' && state.aliyunTask.status !== 'FAILED') {
+                cancelTaskId = state.aliyunTask.id;
+                log(`Found active auto-task ${cancelTaskId}, will request cancellation.`);
+            }
+            
             statusDiv.textContent = '正在提交任务...';
             statusDiv.style.color = 'blue';
             
@@ -871,7 +879,8 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        prompt_text: prompt
+                        prompt_text: prompt,
+                        cancel_task_id: cancelTaskId
                     })
                 });
                 const data = await res.json();
