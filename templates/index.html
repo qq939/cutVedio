@@ -140,40 +140,49 @@
 
         <div id="gallery" class="gallery"></div>
         
-        <div id="videoContainer" style="margin-top: 30px; width: 100%; display: none;">
-            <div style="display: flex; align-items: center; margin-bottom: 10px;">
-                <h3 style="margin: 0; margin-right: 15px;">原视频</h3>
-                <span style="color: #666; margin-right: 5px;">原始下载地址:</span>
-                <a id="originalLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 14px;"></a>
+        <!-- Original Video Section -->
+        <div id="videoContainer" class="card" style="display: none;">
+            <div class="card-header">
+                <h3 class="card-title">原视频</h3>
+                <a id="originalLink" href="#" target="_blank" style="color: #007bff; text-decoration: none; font-size: 14px;">下载原视频</a>
             </div>
-            <video id="videoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px;">
+            <video id="videoPlayer" controls style="width: 100%; border-radius: 8px;">
                 Your browser does not support the video tag.
             </video>
         </div>
-        <div id="r2Container" style="margin-top: 20px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; display: none; text-align: left;">
-            <h3 style="margin-top: 0; font-size: 16px;">OBS 上传状态</h3>
+
+        <!-- OBS Upload Section -->
+        <div id="r2Container" class="card" style="display: none;">
+            <div class="card-header">
+                <h3 class="card-title">OBS 上传状态</h3>
+            </div>
             
-            <!-- Manual Upload Section -->
-            <div style="margin-top: 10px; padding: 10px; border: 1px dashed #ccc; background-color: #fff;">
-                <strong>手动推送 (失败重试)</strong>
-                <div style="margin-top: 5px; display: flex; gap: 10px;">
-                    <button type="button" onclick="manualUploadCharacter()" style="padding: 5px 10px; font-size: 14px;">推送角色图片</button>
-                    <button type="button" onclick="manualUploadVideo()" style="padding: 5px 10px; font-size: 14px;">推送视频</button>
+            <div style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 6px;">
+                <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">手动推送 (失败重试)</div>
+                <div style="display: flex; gap: 10px;">
+                    <button type="button" class="action-btn" onclick="manualUploadCharacter()">推送角色图片</button>
+                    <button type="button" class="action-btn" onclick="manualUploadVideo()">推送视频</button>
                 </div>
-                <div id="manualUploadStatus" style="margin-top: 5px; font-size: 12px;"></div>
+                <div id="manualUploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
             </div>
 
-            <div style="display: flex; gap: 15px; margin-top: 10px;">
+            <div style="display: flex; gap: 15px;">
                 <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
                 <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
             </div>
         </div>
 
-        <div id="aliyunContainer" style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 8px; display: none; text-align: left; border: 1px solid #ffeeba;">
-            <h3 style="margin-top: 0; font-size: 16px;">AI 视频生成 (Aliyun Bailian)</h3>
-            <div id="aliyunStatus" style="margin-bottom: 10px; font-size: 14px;">等待开始...</div>
+        <!-- AI Generation Section -->
+        <div id="aliyunContainer" class="card" style="display: none; background-color: #f0f8ff; border-color: #cce5ff;">
+            <div class="card-header" style="border-bottom-color: #dae0e5;">
+                <h3 class="card-title">AI 视频生成 (ComfyUI)</h3>
+                <button id="retryComfyBtn" class="action-btn secondary" onclick="retryComfyTask()" style="display: none; font-size: 12px;">手动重试任务</button>
+            </div>
+            
+            <div id="aliyunStatus" style="margin-bottom: 15px; font-size: 14px; color: #495057;">等待开始...</div>
+            
             <div id="generatedVideoContainer" style="display: none;">
-                <video id="generatedVideoPlayer" controls style="width: 100%; max-width: 800px; border-radius: 8px; margin-bottom: 10px;">
+                <video id="generatedVideoPlayer" controls style="width: 100%; border-radius: 8px; margin-bottom: 10px;">
                     Your browser does not support the video tag.
                 </video>
                 <div>
@@ -309,7 +318,17 @@
             }
         }
 
-        document.addEventListener('DOMContentLoaded', loadState);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            
+            // Add input listener to save state immediately
+            const videoUrlInput = document.getElementById('videoUrl');
+            if (videoUrlInput) {
+                videoUrlInput.addEventListener('input', (e) => {
+                    saveState({ videoUrl: e.target.value });
+                });
+            }
+        });
 
         function manualUploadCharacter() {
             const statusDiv = document.getElementById('manualUploadStatus');
