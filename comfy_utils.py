@@ -306,9 +306,13 @@ def check_status(prompt_id):
             target_node_id = "243"
             
             if target_node_id in outputs:
-                video_files = outputs[target_node_id].get('gifs', []) # SaveVideo often returns 'gifs' key for video files in API
+                # SaveVideo often returns 'gifs' key for video files in API, or 'videos'
+                # Sometimes it puts mp4 under 'images' too
+                video_files = outputs[target_node_id].get('gifs', []) 
                 if not video_files:
-                     video_files = outputs[target_node_id].get('videos', []) # Or 'videos'
+                     video_files = outputs[target_node_id].get('videos', [])
+                if not video_files:
+                     video_files = outputs[target_node_id].get('images', [])
                 
                 if video_files:
                     # Found video
@@ -328,10 +332,12 @@ def check_status(prompt_id):
             
             # If we didn't find the specific node, look for any video output
             for node_id, node_output in outputs.items():
-                if 'videos' in node_output or 'gifs' in node_output:
-                     video_files = node_output.get('videos', []) + node_output.get('gifs', [])
-                     if video_files:
-                        file_info = video_files[0]
+                video_files = node_output.get('videos', []) + node_output.get('gifs', []) + node_output.get('images', [])
+                if video_files:
+                    # Check if it looks like a video file
+                    file_info = video_files[0]
+                    fname = file_info.get('filename', '').lower()
+                    if fname.endswith('.mp4') or fname.endswith('.mov') or fname.endswith('.webm') or fname.endswith('.gif'):
                         return "SUCCEEDED", {
                             "filename": file_info.get('filename'),
                             "subfolder": file_info.get('subfolder', ''),
