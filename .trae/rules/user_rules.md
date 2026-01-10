@@ -1,5 +1,8 @@
 ANSWER IN CHINESE!
-ref.txt（如果没有请新建）里面是需要参考的github仓库地址，很重要一定要看完里面仓库的内容
+完成所有任务清单，完成之前不要退出
+TDD模式，每个任务开始前先写测试脚本，脚本必须通过测试才算完成任务
+web项目必须有接口测试
+.trae/reference/ref.txt（如果没有请新建，只写url）里面是需要参考的github仓库地址或者接口文档，很重要，如果你认为有哪些可以参考的，也可以补充到该文件中。
 优先使用mcp工具来完成任务
 将user_rules.md文件中的所有规则都保存在：.trae/rules/user_rules.md中
 如果有git仓库，先暂存本地修改，然后git pull，然后再继续下面的步骤
