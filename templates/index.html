@@ -509,8 +509,8 @@
             const aliyunStatus = document.getElementById('aliyunStatus');
             
             aliyunContainer.style.display = 'block';
-            aliyunStatus.textContent = '正在提交 AI 视频生成任务...';
-            log('Submitting Aliyun task...');
+            aliyunStatus.textContent = '正在提交 ComfyUI 视频生成任务...';
+            log('Submitting ComfyUI task...');
             
             try {
                 const response = await fetch('/api/generate_video', {
@@ -527,8 +527,8 @@
                 const data = await response.json();
                 
                 if (response.ok && data.task_id) {
-                    log(`Aliyun task started. Task ID: ${data.task_id}`);
-                    aliyunStatus.textContent = `任务已提交 (ID: ${data.task_id})，正在生成中，请耐心等待...`;
+                    log(`ComfyUI task started. Task ID: ${data.task_id}`);
+                    aliyunStatus.textContent = `任务已提交 (ID: ${data.task_id})，正在生成中，预计需要20分钟，请耐心等待...`;
                     
                     // Save task info
                     saveState({ 
@@ -541,11 +541,11 @@
                     pollTaskStatus(data.task_id);
                 } else {
                     aliyunStatus.textContent = '任务提交失败: ' + (data.error || '未知错误');
-                    log(`Aliyun task submission failed: ${data.error}`);
+                    log(`ComfyUI task submission failed: ${data.error}`);
                 }
             } catch (error) {
                 aliyunStatus.textContent = '请求错误: ' + error.message;
-                log(`Aliyun task request error: ${error.message}`);
+                log(`ComfyUI task request error: ${error.message}`);
             }
         }
         
@@ -597,7 +597,9 @@
                                 } 
                             });
                         } else {
-                            aliyunStatus.textContent = `生成中... (状态: ${status})`;
+                            // Update status text with a timestamp to show it's alive
+                            const now = new Date().toLocaleTimeString();
+                            aliyunStatus.textContent = `生成中... (状态: ${status}) - 更新于 ${now}`;
                         }
                     } else {
                         log(`Poll status failed: ${data.error}`);
@@ -605,7 +607,7 @@
                 } catch (error) {
                     log(`Poll error: ${error.message}`);
                 }
-            }, 5000); // Poll every 5 seconds
+            }, 10000); // Poll every 10 seconds (increased from 5s)
         }
     </script>
 </body>

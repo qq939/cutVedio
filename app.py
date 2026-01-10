@@ -311,18 +311,51 @@ def manual_upload_video():
 def api_generate_video():
     try:
         data = request.json
-        character_url = data.get('character_url')
-        video_url = data.get('video_url')
+        # comfy_utils needs local paths, not URLs.
+        # But our frontend sends URLs like /images/lulu.webp or OBS URLs?
+        # Let's check frontend.
+        # Frontend sends:
+        # character_url: data.upload_urls.character (OBS URL)
+        # video_url: data.upload_urls.video (OBS URL)
         
-        if not character_url or not video_url:
-            return jsonify({'error': 'Missing character_url or video_url'}), 400
-            
-        task_id = aliyun_utils.create_task(character_url, video_url)
+        # However, ComfyUI needs to upload files from LOCAL server to ComfyUI server.
+        # So we should use the local file paths if available.
+        # But api_generate_video is called from frontend which has URLs.
+        
+        # We need to map these URLs back to local files or re-download them.
+        # Since we are on the same server, we can deduce the local path.
+        
+        # character_url usually is http://.../character.png (OBS)
+        # But we also have it locally at face/lulu.webp or tmp/character.png
+        # Let's use the standard local paths.
+        
+        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+        
+        # For video, we need to find the latest downloaded video in VIDEO_FOLDER
+        # Or pass the filename from frontend?
+        # The frontend sends 'video_url' which is OBS URL.
+        # But we processed the video and saved it in tmp/video/
+        
+        # Let's try to find the video file in tmp/video/
+        # Just pick the latest one or the one that matches the OBS upload?
+        # Simple approach: Pick the latest mp4 in tmp/video/
+        
+        files = glob.glob(os.path.join(VIDEO_FOLDER, '*.*'))
+        video_files = [f for f in files if not os.path.basename(f).startswith('.')]
+        if not video_files:
+             return jsonify({'error': 'No local video file found'}), 400
+             
+        video_files.sort(key=os.path.getmtime, reverse=True)
+        video_path = video_files[0]
+        
+        logger.info(f"Submitting ComfyUI job with: Char={character_path}, Video={video_path}")
+        
+        task_id, error = comfy_utils.submit_job(character_path, video_path)
         
         if task_id:
             return jsonify({'message': 'Task started', 'task_id': task_id})
         else:
-            return jsonify({'error': 'Failed to start Jimeng task'}), 500
+            return jsonify({'error': f'Failed to start ComfyUI task: {error}'}), 500
             
     except Exception as e:
         logger.error(f"Generate video API error: {e}")
@@ -331,35 +364,25 @@ def api_generate_video():
 @app.route('/api/task_status/<task_id>', methods=['GET'])
 def api_task_status(task_id):
     try:
-        status, result = aliyun_utils.check_task_status(task_id)
+        status, result = comfy_utils.check_status(task_id)
         
-        # If succeeded and we have a video URL, download it to ULTRA_VIDEO_FOLDER
-        if status == 'SUCCEEDED' and result and result.startswith('http'):
+        # If succeeded, result contains file_info dict
+        if status == 'SUCCEEDED' and isinstance(result, dict):
             try:
-                # Create a filename based on task_id
-                filename = f"{task_id}.mp4"
-                local_path = os.path.join(ULTRA_VIDEO_FOLDER, filename)
+                # Download result to ULTRA_VIDEO_FOLDER
+                local_path = comfy_utils.download_result(result, ULTRA_VIDEO_FOLDER)
                 
-                # Check if already downloaded
-                if not os.path.exists(local_path):
-                    logger.info(f"Downloading generated video from {result} to {local_path}")
-                    resp = requests.get(result, stream=True)
-                    if resp.status_code == 200:
-                        with open(local_path, 'wb') as f:
-                            for chunk in resp.iter_content(chunk_size=8192):
-                                f.write(chunk)
-                        logger.info("Download completed.")
-                    else:
-                        logger.error(f"Failed to download video: {resp.status_code}")
-                
-                # Return the local URL
-                local_url = f"/ultraVideo/{filename}"
-                return jsonify({'status': status, 'result': local_url})
+                if local_path:
+                    filename = os.path.basename(local_path)
+                    # Return the local URL
+                    local_url = f"/ultraVideo/{filename}"
+                    return jsonify({'status': status, 'result': local_url})
+                else:
+                    return jsonify({'status': 'FAILED', 'result': 'Download failed'})
                 
             except Exception as download_error:
                 logger.error(f"Error downloading generated video: {download_error}")
-                # Fallback to remote URL if download fails
-                return jsonify({'status': status, 'result': result})
+                return jsonify({'status': 'FAILED', 'result': str(download_error)})
 
         return jsonify({'status': status, 'result': result})
     except Exception as e:

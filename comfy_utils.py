@@ -1,0 +1,279 @@
+import os
+import json
+import time
+import requests
+import logging
+import websocket # pip install websocket-client
+import uuid
+import urllib.parse
+import urllib.request
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class ComfyUIClient:
+    def __init__(self, server_address="127.0.0.1:8188"):
+        self.server_address = server_address
+        self.client_id = str(uuid.uuid4())
+        self.ws = None
+
+    def upload_file(self, file_path, subfolder="", overwrite=False):
+        """
+        Uploads an image or video to ComfyUI.
+        """
+        try:
+            url = f"http://{self.server_address}/upload/image"
+            file_name = os.path.basename(file_path)
+            
+            with open(file_path, 'rb') as file:
+                files = {'image': file}
+                data = {
+                    'subfolder': subfolder,
+                    'overwrite': 'true' if overwrite else 'false'
+                }
+                logger.info(f"Uploading {file_path} to {url}...")
+                response = requests.post(url, files=files, data=data)
+                
+            if response.status_code == 200:
+                response_data = response.json()
+                # ComfyUI returns the filename (sometimes renamed) and subfolder/type
+                logger.info(f"Upload successful: {response_data}")
+                return response_data
+            else:
+                logger.error(f"Upload failed: {response.status_code} - {response.text}")
+                return None
+        except Exception as e:
+            logger.error(f"Upload exception: {e}")
+            return None
+
+    def queue_prompt(self, workflow):
+        """
+        Submits a workflow to the ComfyUI queue.
+        """
+        try:
+            url = f"http://{self.server_address}/prompt"
+            data = {"prompt": workflow, "client_id": self.client_id}
+            data_json = json.dumps(data).encode('utf-8')
+            
+            req = urllib.request.Request(url, data=data_json)
+            with urllib.request.urlopen(req) as response:
+                result = json.loads(response.read())
+                logger.info(f"Prompt queued. ID: {result.get('prompt_id')}")
+                return result.get('prompt_id')
+        except Exception as e:
+            logger.error(f"Queue prompt failed: {e}")
+            return None
+
+    def get_history(self, prompt_id):
+        """
+        Gets the history of a specific prompt.
+        """
+        try:
+            url = f"http://{self.server_address}/history/{prompt_id}"
+            with urllib.request.urlopen(url) as response:
+                return json.loads(response.read())
+        except Exception as e:
+            # If 404, it might mean it's still running or not found
+            # ComfyUI returns {} or error if not found in history (meaning potentially still in queue/running)
+            return {}
+
+    def get_queue(self):
+        """
+        Gets the current queue status.
+        """
+        try:
+            url = f"http://{self.server_address}/queue"
+            with urllib.request.urlopen(url) as response:
+                return json.loads(response.read())
+        except Exception as e:
+            logger.error(f"Get queue failed: {e}")
+            return {}
+
+    def is_task_running(self, prompt_id):
+        """
+        Checks if a task is currently running or pending.
+        """
+        queue_data = self.get_queue()
+        
+        # Check pending
+        for task in queue_data.get('queue_pending', []):
+            if task[1] == prompt_id:
+                return "PENDING"
+                
+        # Check running
+        for task in queue_data.get('queue_running', []):
+            if task[1] == prompt_id:
+                return "RUNNING"
+                
+        return "NOT_FOUND" # Could be finished or invalid
+
+    def download_output_file(self, filename, subfolder="", file_type="output", output_dir="."):
+        """
+        Downloads a file from ComfyUI output.
+        """
+        try:
+            params = {
+                "filename": filename,
+                "subfolder": subfolder,
+                "type": file_type
+            }
+            query_string = urllib.parse.urlencode(params)
+            url = f"http://{self.server_address}/view?{query_string}"
+            
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                
+            local_path = os.path.join(output_dir, filename)
+            logger.info(f"Downloading {url} to {local_path}...")
+            
+            urllib.request.urlretrieve(url, local_path)
+            return local_path
+        except Exception as e:
+            logger.error(f"Download failed: {e}")
+            return None
+
+# Helper functions to be used by app.py
+
+# Initialize client (Global instance or create per request? Better per request or global if stateless)
+# We'll assume the server address is fixed or passed via env.
+# The user's snippet had "192.168.50.:8188", which is likely a local LAN IP. 
+# For now, I'll default to localhost, but allow override.
+SERVER_ADDRESS = os.environ.get("COMFYUI_SERVER", "127.0.0.1:8188")
+client = ComfyUIClient(SERVER_ADDRESS)
+
+def submit_job(character_path, video_path):
+    """
+    Orchestrates the whole process:
+    1. Upload character image
+    2. Upload video
+    3. Load workflow template
+    4. Update inputs
+    5. Queue prompt
+    """
+    try:
+        # 1. Upload files
+        char_res = client.upload_file(character_path)
+        video_res = client.upload_file(video_path)
+        
+        if not char_res or not video_res:
+            return None, "Failed to upload files"
+            
+        char_filename = char_res.get('name')
+        video_filename = video_res.get('name')
+        
+        # 2. Load workflow
+        workflow_path = os.path.join(os.path.dirname(__file__), 'comfyapi', '视频换人video_wan2_2_14B_animate.json')
+        if not os.path.exists(workflow_path):
+            return None, "Workflow file not found"
+            
+        with open(workflow_path, 'r', encoding='utf-8') as f:
+            workflow = json.load(f)
+            
+        # 3. Update inputs
+        # Node 10: LoadImage (Character)
+        if "10" in workflow:
+            workflow["10"]["inputs"]["image"] = char_filename
+            
+        # Node 145: LoadVideo (Video)
+        if "145" in workflow:
+            workflow["145"]["inputs"]["file"] = video_filename
+            
+        # Randomize seed for KSamplers to ensure new results
+        # Nodes: 232:63 and 242:91 (KSampler)
+        import random
+        seed = random.randint(1, 1000000000000000)
+        
+        if "232:63" in workflow:
+            workflow["232:63"]["inputs"]["seed"] = seed
+        
+        if "242:91" in workflow:
+            workflow["242:91"]["inputs"]["seed"] = seed
+            
+        # 4. Queue prompt
+        prompt_id = client.queue_prompt(workflow)
+        
+        if prompt_id:
+            return prompt_id, None
+        else:
+            return None, "Failed to queue prompt"
+            
+    except Exception as e:
+        logger.error(f"Submit job error: {e}")
+        return None, str(e)
+
+def check_status(prompt_id):
+    """
+    Checks the status of the job.
+    Returns: status (str), result (str/None)
+    Status: PENDING, RUNNING, SUCCEEDED, FAILED
+    """
+    try:
+        # Check history first (if finished)
+        history = client.get_history(prompt_id)
+        
+        if prompt_id in history:
+            # Task finished
+            outputs = history[prompt_id].get('outputs', {})
+            
+            # We look for the final SaveVideo node (Node 243)
+            # Or any video output if 243 is missing
+            target_node_id = "243"
+            
+            if target_node_id in outputs:
+                video_files = outputs[target_node_id].get('gifs', []) # SaveVideo often returns 'gifs' key for video files in API
+                if not video_files:
+                     video_files = outputs[target_node_id].get('videos', []) # Or 'videos'
+                
+                if video_files:
+                    # Found video
+                    file_info = video_files[0]
+                    filename = file_info.get('filename')
+                    subfolder = file_info.get('subfolder', '')
+                    file_type = file_info.get('type', 'output')
+                    
+                    # Download URL (or local path if we want to download it)
+                    # We should download it to our static folder
+                    # Return the download link
+                    return "SUCCEEDED", {
+                        "filename": filename,
+                        "subfolder": subfolder,
+                        "type": file_type
+                    }
+            
+            # If we didn't find the specific node, look for any video output
+            for node_id, node_output in outputs.items():
+                if 'videos' in node_output or 'gifs' in node_output:
+                     video_files = node_output.get('videos', []) + node_output.get('gifs', [])
+                     if video_files:
+                        file_info = video_files[0]
+                        return "SUCCEEDED", {
+                            "filename": file_info.get('filename'),
+                            "subfolder": file_info.get('subfolder', ''),
+                            "type": file_info.get('type', 'output')
+                        }
+
+            return "FAILED", "No output video found"
+            
+        # If not in history, check queue
+        status = client.is_task_running(prompt_id)
+        if status in ["PENDING", "RUNNING"]:
+            return status, None
+        
+        # If not in queue and not in history, maybe it failed before saving history or invalid ID
+        return "FAILED", "Task not found in queue or history"
+        
+    except Exception as e:
+        logger.error(f"Check status error: {e}")
+        return "FAILED", str(e)
+
+def download_result(file_info, output_dir):
+    """
+    Downloads the result file from ComfyUI to local directory.
+    """
+    return client.download_output_file(
+        file_info['filename'], 
+        file_info['subfolder'], 
+        file_info['type'], 
+        output_dir
+    )
