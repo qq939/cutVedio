@@ -62,6 +62,35 @@ class ComfyUIClient:
             return fallback
         return "127.0.0.1:8188"
 
+    def check_connection(self):
+        """
+        Checks if the current server address is reachable.
+        If not, tries to find an active server again.
+        """
+        try:
+            url = f"http://{self.server_address}/object_info"
+            response = requests.get(url, timeout=2)
+            if response.status_code == 200:
+                return True
+        except:
+            pass
+            
+        # If current fails, try to re-discover
+        logger.info("Current ComfyUI server unreachable, trying to rediscover...")
+        new_server = self._find_active_server()
+        if new_server:
+            self.server_address = new_server
+            # Check again
+            try:
+                url = f"http://{self.server_address}/object_info"
+                response = requests.get(url, timeout=2)
+                if response.status_code == 200:
+                    return True
+            except:
+                pass
+                
+        return False
+
     def upload_file(self, file_path, subfolder="", overwrite=False):
         """
         Uploads an image or video to ComfyUI.

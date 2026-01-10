@@ -161,6 +161,20 @@
         .action-btn.secondary:hover {
             background-color: #545b62;
         }
+
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #dc3545; /* Default red */
+            margin-left: 8px;
+            vertical-align: middle;
+            transition: background-color 0.3s;
+        }
+        .status-dot.connected {
+            background-color: #28a745; /* Green */
+        }
     </style>
 </head>
 <body>
@@ -222,7 +236,10 @@
         <!-- AI Generation Section -->
         <div id="aliyunContainer" class="card" style="display: block; background-color: #f0f8ff; border-color: #cce5ff;">
             <div class="card-header" style="border-bottom-color: #dae0e5;">
-                <h3 class="card-title">AI 视频生成 (ComfyUI)</h3>
+                <h3 class="card-title">
+                    AI 视频生成 (ComfyUI)
+                    <span id="comfyConnectionDot" class="status-dot" title="ComfyUI 连接状态"></span>
+                </h3>
             </div>
             
             <div id="aliyunStatus" style="margin-bottom: 15px; font-size: 14px; color: #495057;">等待开始...</div>
@@ -395,7 +412,32 @@
                     saveState({ videoUrl: e.target.value });
                 });
             }
+            
+            // Start polling ComfyUI status
+            checkComfyStatus();
+            setInterval(checkComfyStatus, 30000); // Check every 30s
         });
+        
+        async function checkComfyStatus() {
+            const dot = document.getElementById('comfyConnectionDot');
+            if (!dot) return;
+            
+            try {
+                const response = await fetch('/api/comfy/status');
+                const data = await response.json();
+                
+                if (response.ok && data.status === 'connected') {
+                    dot.classList.add('connected');
+                    dot.title = "ComfyUI 已连接";
+                } else {
+                    dot.classList.remove('connected');
+                    dot.title = "ComfyUI 未连接";
+                }
+            } catch (e) {
+                dot.classList.remove('connected');
+                dot.title = "ComfyUI 连接检查失败";
+            }
+        }
 
         function manualUploadCharacter() {
             const statusDiv = document.getElementById('manualUploadStatus');

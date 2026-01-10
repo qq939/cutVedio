@@ -479,6 +479,15 @@ def api_comfy_execute():
         logger.error(f"Comfy execute error: {e}")
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/comfy/status', methods=['GET'])
+def api_comfy_status():
+    try:
+        is_connected = comfy_utils.client.check_connection()
+        return jsonify({'status': 'connected' if is_connected else 'disconnected'})
+    except Exception as e:
+        logger.error(f"Comfy status check error: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
 @app.route('/overall', methods=['POST'])
 def api_overall():
     try:
