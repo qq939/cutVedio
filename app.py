@@ -262,6 +262,47 @@ def convert_and_upload_character(source_path):
 
 import re
 
+@app.route('/manual_upload/character_image', methods=['POST'])
+def manual_upload_character_image():
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No image file provided'}), 400
+            
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+            
+        if file:
+            # Save to face/lulu.webp (overwrite)
+            # Or save as original name and update code to use it? 
+            # The prompt says "replace lulu.webp".
+            # But comfy_utils uses face/lulu.webp by default.
+            # However, file might be png/jpg.
+            # We should convert it to webp or update the logic to accept other formats.
+            # Let's save as face/lulu.webp for consistency with existing logic.
+            # Or better, save as is and convert/rename.
+            
+            target_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+            
+            # Convert to webp using PIL to ensure compatibility
+            try:
+                img = Image.open(file)
+                img.save(target_path, 'WEBP')
+                logger.info(f"Uploaded image converted and saved to {target_path}")
+                
+                # Also upload to OBS immediately as per existing flow?
+                # manual_upload_character() does this.
+                obs_url = convert_and_upload_character(target_path)
+                
+                return jsonify({'message': 'Image uploaded and replaced successfully', 'url': obs_url})
+            except Exception as convert_error:
+                logger.error(f"Image conversion error: {convert_error}")
+                return jsonify({'error': f'Failed to process image: {convert_error}'}), 500
+                
+    except Exception as e:
+        logger.error(f"Upload image error: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/manual_upload/character', methods=['POST'])
 def manual_upload_character():
     try:

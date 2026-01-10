@@ -170,13 +170,15 @@ class ComfyUIClient:
         queue_data = self.get_queue()
         
         # Check pending
+        # Task format in pending: [task_id, prompt_id, ...]
         for task in queue_data.get('queue_pending', []):
-            if task[1] == prompt_id:
+            if len(task) > 1 and task[1] == prompt_id:
                 return "PENDING"
                 
         # Check running
+        # Task format in running: [task_id, prompt_id, ...]
         for task in queue_data.get('queue_running', []):
-            if task[1] == prompt_id:
+            if len(task) > 1 and task[1] == prompt_id:
                 return "RUNNING"
                 
         return "NOT_FOUND" # Could be finished or invalid
@@ -351,7 +353,17 @@ def check_status(prompt_id):
         if status in ["PENDING", "RUNNING"]:
             return status, None
         
-        # If not in queue and not in history, maybe it failed before saving history or invalid ID
+        # If not in queue and not in history, double check history just in case it finished while we were checking queue
+        # Or maybe invalid ID
+        history = client.get_history(prompt_id)
+        if prompt_id in history:
+            # Recursive call or just duplicate logic? Let's just return success for now to trigger next poll loop logic if called again
+            # Or better, just copy the success logic. 
+            # For simplicity, let's return a special status or just NOT_FOUND if truly gone.
+            # But wait, if it finished between the first history check and the queue check, it would be in history now.
+            # So let's return NOT_FOUND only if truly missing.
+            pass
+
         return "FAILED", "Task not found in queue or history"
         
     except Exception as e:

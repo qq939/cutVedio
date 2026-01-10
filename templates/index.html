@@ -216,17 +216,22 @@
             <div id="r2Container" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
                 <div style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 6px;">
                     <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">手动推送 (失败重试)</div>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
                         <button type="button" class="action-btn" onclick="manualUploadCharacter()">推送角色图片</button>
                         <button type="button" class="action-btn" onclick="manualUploadVideo()">推送视频</button>
+                        
+                        <!-- Upload Image Button -->
+                        <div style="position: relative;">
+                            <input type="file" id="characterImageInput" accept="image/*" style="display: none;" onchange="uploadCharacterImage(this)">
+                            <button type="button" class="action-btn secondary" onclick="document.getElementById('characterImageInput').click()" style="background-color: #fff; color: #dc3545; border: 1px solid #dc3545;">
+                                上传图片替换face/lulu
+                            </button>
+                        </div>
                     </div>
                     <div id="manualUploadStatus" style="margin-top: 8px; font-size: 12px;"></div>
                 </div>
 
-                <div style="display: flex; gap: 15px;">
-                    <a id="characterLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">角色图片</a>
-                    <a id="videoLink" href="#" target="_blank" style="color: #28a745; text-decoration: none; font-weight: bold; display: none;">处理视频</a>
-                </div>
+                <!-- Removed Character Image and Processed Video links as requested -->
             </div>
         </div>
 
@@ -375,6 +380,8 @@
             }
 
             // Display OBS Links
+            // Links removed as requested
+            /*
             const characterLink = document.getElementById('characterLink');
             const videoLink = document.getElementById('videoLink');
             
@@ -389,15 +396,20 @@
                     videoLink.textContent = '处理视频';
                     videoLink.style.display = 'inline-block';
                 }
-                // r2Container is now inside videoContainer, so it shows when videoContainer shows.
-                // We don't need to explicitly show it if it's just a div.
-                // But if we want to toggle visibility of the tools based on upload status, we can.
-                // For now, let's keep it visible if video is visible.
-                r2Container.style.display = 'block';
-                
-                // Show AI container even if not started yet (Placeholder)
-                const aliyunContainer = document.getElementById('aliyunContainer');
-                aliyunContainer.style.display = 'block';
+            }
+            */
+            
+            if (data.upload_urls) {
+                 // r2Container is now inside videoContainer, so it shows when videoContainer shows.
+                 // We don't need to explicitly show it if it's just a div.
+                 // But if we want to toggle visibility of the tools based on upload status, we can.
+                 // For now, let's keep it visible if video is visible.
+                 const r2Container = document.getElementById('r2Container');
+                 if(r2Container) r2Container.style.display = 'block';
+                 
+                 // Show AI container even if not started yet (Placeholder)
+                 const aliyunContainer = document.getElementById('aliyunContainer');
+                 aliyunContainer.style.display = 'block';
             }
         }
 
@@ -443,6 +455,40 @@
                 dot.classList.remove('connected');
                 dot.title = "ComfyUI 连接检查失败";
             }
+        }
+        
+        function uploadCharacterImage(input) {
+            if (!input.files || input.files.length === 0) return;
+            
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            const statusDiv = document.getElementById('manualUploadStatus');
+            statusDiv.textContent = '正在上传新图片...';
+            statusDiv.style.color = 'blue';
+            
+            fetch('/manual_upload/character_image', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    statusDiv.textContent = '上传失败: ' + data.error;
+                    statusDiv.style.color = 'red';
+                } else {
+                    statusDiv.innerHTML = `图片上传成功并已替换! <a href="${data.url}" target="_blank">查看</a>`;
+                    statusDiv.style.color = 'green';
+                    // Reset file input
+                    input.value = '';
+                }
+            })
+            .catch(error => {
+                statusDiv.textContent = '上传请求错误: ' + error;
+                statusDiv.style.color = 'red';
+                input.value = '';
+            });
         }
 
         function manualUploadCharacter() {
