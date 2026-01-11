@@ -564,70 +564,42 @@ def api_comfy_status():
 @app.route('/overall', methods=['POST'])
 def api_overall():
     try:
-        data = request.json
-        if not data or 'url' not in data:
-            return jsonify({'error': 'Missing url parameter'}), 400
+        # Check if video file is present in request
+        if 'video' not in request.files:
+            return jsonify({'error': 'No video file provided'}), 400
             
-        raw_input = data['url']
-        logger.info(f"Overall process started with input: {raw_input}")
-        
-        # 1. Process Video (Extract URL, Download, Frame Extract, Upload to OBS)
-        # We need to reuse the logic from process_video but programmatically
-        # Refactoring process_video to a helper function would be cleaner, but for now I'll call it or duplicate/adapt logic.
-        # Calling process_video() directly is tricky because it relies on request.form and returns Response object.
-        # Let's extract the core logic of process_video into a helper function later? 
-        # For now, let's adapt the logic here.
-        
-        # Extract URL
-        url_match = re.search(r'(https?://[^\s]+)', raw_input)
-        if url_match:
-            video_url = url_match.group(1)
-        else:
-            video_url = raw_input.strip()
+        file = request.files['video']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
             
-        logger.info(f"Extracted Video URL: {video_url}")
+        logger.info(f"Overall process started with file: {file.filename}")
         
-        # --- Start Processing Logic ---
-        downloaded_video_path = None
+        # Clear previous frames
+        for f in os.listdir(IMAGE_FOLDER):
+            file_path = os.path.join(IMAGE_FOLDER, f)
+            if os.path.isfile(file_path):
+                os.remove(file_path)
         
-        # A. Character Upload
-        character_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
-        character_obs_url = convert_and_upload_character(character_path)
-        if not character_obs_url:
-             return jsonify({'error': 'Failed to upload character'}), 500
-
-        # B. Clean up
+        # Clear previous videos
         for f in os.listdir(VIDEO_FOLDER):
             file_path = os.path.join(VIDEO_FOLDER, f)
             if os.path.isfile(file_path):
                 os.remove(file_path)
                 
-        # C. Download Video
-        downloaded_video_path = download_video(video_url, VIDEO_FOLDER)
-        if not downloaded_video_path:
-             return jsonify({'error': 'Failed to download video'}), 500
-             
-        # D. Upload Video to OBS
-        video_filename = os.path.basename(downloaded_video_path)
-        video_obs_url = obs_utils.upload_file(downloaded_video_path, 'reference.mp4', mime_type='video/mp4')
-        if not video_obs_url:
-             return jsonify({'error': 'Failed to upload video to OBS'}), 500
-             
-        # E. Submit to ComfyUI
-        # We use the local paths for ComfyUI submission as per comfy_utils requirement
-        task_id, error = comfy_utils.submit_job(character_path, downloaded_video_path)
+        # Save uploaded file
+        ext = os.path.splitext(file.filename)[1]
+        if not ext:
+            ext = '.mp4'
         
-        if task_id:
-            return jsonify({
-                'message': 'Task submitted successfully', 
-                'task_id': task_id,
-                'obs_urls': {
-                    'character': character_obs_url,
-                    'video': video_obs_url
-                }
-            })
-        else:
-            return jsonify({'error': f'Failed to submit ComfyUI task: {error}'}), 500
+        filename = f"uploaded_video{ext}"
+        video_path = os.path.join(VIDEO_FOLDER, filename)
+        file.save(video_path)
+        
+        logger.info(f"Saved uploaded video to {video_path}")
+        
+        # Run pipeline
+        result, status_code = _run_processing_pipeline(video_path, file.filename)
+        return jsonify(result), status_code
 
     except Exception as e:
         logger.error(f"Overall API error: {e}")
