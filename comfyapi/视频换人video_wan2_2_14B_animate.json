@@ -108,7 +108,7 @@
   },
   "21": {
     "inputs": {
-      "text": "The character is dancing in the room",
+      "text": "chibi, super deformed, 2 heads tall, big head small body, flat chest, child body, cute, anime style, short legs, toddler proportions",
       "clip": [
         "2",
         0
@@ -460,10 +460,6 @@
         "100",
         0
       ],
-      "pose_video": [
-        "101",
-        0
-      ],
       "background_video": [
         "275",
         0
@@ -630,10 +626,6 @@
       ],
       "face_video": [
         "100",
-        0
-      ],
-      "pose_video": [
-        "101",
         0
       ],
       "background_video": [
