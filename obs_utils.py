@@ -1,6 +1,6 @@
-import subprocess
 import logging
 import os
+import requests
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -10,7 +10,7 @@ OBS_BASE_URL = "http://obs.dimond.top"
 
 def upload_file(file_path, file_name, mime_type=None):
     """
-    Upload file to OBS URL using curl --upload-file.
+    Upload file to OBS URL using requests.put (equivalent to curl --upload-file).
     """
     target_url = f"{OBS_BASE_URL}/{file_name}"
     try:
@@ -23,23 +23,23 @@ def upload_file(file_path, file_name, mime_type=None):
             logger.error(msg)
             return None
 
-        # Use curl --upload-file as requested
-        # Added -k for insecure/skip verify if needed
-        command = ['curl', '-k', '--upload-file', file_path, target_url]
-        print(f"DEBUG: Command: {' '.join(command)}", flush=True)
-        
-        result = subprocess.run(command, capture_output=True, text=True)
-        
-        if result.returncode == 0:
+        # Use requests.put to upload file content
+        with open(file_path, 'rb') as f:
+            headers = {}
+            if mime_type:
+                headers['Content-Type'] = mime_type
+                
+            # verify=False is equivalent to -k in curl
+            response = requests.put(target_url, data=f, headers=headers, verify=False)
+            
+        if response.status_code in [200, 201]:
             print(f"DEBUG: Upload successful: {target_url}", flush=True)
             logger.info(f"Upload successful: {target_url}")
-            # print(f"DEBUG: Curl output: {result.stdout}", flush=True)
             return target_url
         else:
-            print(f"DEBUG: Upload failed with exit code {result.returncode}", flush=True)
-            print(f"DEBUG: Curl stderr: {result.stderr}", flush=True)
-            print(f"DEBUG: Curl stdout: {result.stdout}", flush=True)
-            logger.error(f"Upload failed. Code: {result.returncode}, Stderr: {result.stderr}")
+            print(f"DEBUG: Upload failed with status code {response.status_code}", flush=True)
+            print(f"DEBUG: Response text: {response.text}", flush=True)
+            logger.error(f"Upload failed. Code: {response.status_code}, Text: {response.text}")
             return None
             
     except Exception as e:
