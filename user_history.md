@@ -1,4 +1,5 @@
 
-2026年 1月 12日 星期一
-User: 本地不把图片和视频存储到video和face文件夹了，直接推送到OBS上，然后再从OBS下载下来推送到ComfyUI上
-Assistant: Modified the workflow to avoid persistent local storage of uploaded videos. Implemented `submit_job_with_urls` in `comfy_utils.py` to handle downloading files from OBS URLs and uploading them to ComfyUI. Updated `app.py` to upload processed videos directly to OBS, use OBS URLs for ComfyUI submission, and clean up local video files after processing. Created `tests/test_obs_flow.py` to verify the new OBS-based workflow using TDD.
+User: 上传图片替换face/lulu按钮，现在的功能改为将文件名及格式改为lulu.png并上传OBS
+Assistant: Updated `manual_upload_character_image` in `app.py` to convert uploaded images to PNG and rename them to `lulu.png` before uploading to OBS, removing local persistence in `face/`. Created `tests/test_upload_lulu.py` to verify this new logic.
+User: INFO:werkzeug:172.17.0.1 - - [12/Jan/2026 13:10:26] "GET /api/comfy/status HTTP/1.1" 200 - ... DEBUG: Upload error: [Errno 2] No such file or directory: 'curl' ...
+Assistant: Fixed the `FileNotFoundError: [Errno 2] No such file or directory: 'curl'` error by replacing the `subprocess.run(['curl', ...])` call in `obs_utils.py` with `requests.put()`. This removes the dependency on the system `curl` binary. Also updated `Dockerfile` to include `curl` as a fallback tool.
