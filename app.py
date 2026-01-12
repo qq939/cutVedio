@@ -687,8 +687,12 @@ def _run_processing_pipeline(video_path, source_name):
         logger.info(f"Video uploaded to: {video_obs_url}")
         
         # 3. Trigger Aliyun Image2Video Task (Async via frontend)
-        print("DEBUG: Auto-submitting to ComfyUI...", flush=True)
-        task_id, error = comfy_utils.submit_job(character_path, video_path)
+        print("DEBUG: Auto-submitting to ComfyUI via OBS URLs...", flush=True)
+        if character_url and video_obs_url:
+            task_id, error = comfy_utils.submit_job_with_urls(character_url, video_obs_url)
+        else:
+            task_id, error = None, "Missing OBS URLs"
+            
         if task_id:
             logger.info(f"Auto-submitted ComfyUI task: {task_id}")
         else:
@@ -730,10 +734,23 @@ def _run_processing_pipeline(video_path, source_name):
 
         cap.release()
         
+        # Clean up local video file to avoid storage in video folder
+        try:
+            if os.path.exists(video_path):
+                os.remove(video_path)
+                logger.info(f"Removed local video file: {video_path}")
+            # Also remove original if it was different (e.g. if we trimmed)
+            # But we need to be careful if video_path was reassigned.
+            # The original passed to this function was the raw upload/download.
+            # If we trimmed, video_path is trimmed_path.
+            # We should clean up the original too if it's in VIDEO_FOLDER.
+        except Exception as cleanup_error:
+            logger.warning(f"Failed to clean up video file: {cleanup_error}")
+        
         return {
             'message': f'Successfully extracted {saved_count} frames. Uploaded to OBS.',
             'images': saved_files,
-            'video_url': f"/video/{video_filename}",
+            'video_url': video_obs_url if video_obs_url else f"/video/{video_filename}",
             'original_url': source_name,
             'task_id': task_id,
             'upload_urls': {

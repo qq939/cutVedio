@@ -41,7 +41,7 @@ class TestTrimVideo(unittest.TestCase):
     @patch('app.trim_video')
     @patch('app.convert_and_upload_character')
     @patch('obs_utils.upload_file')
-    @patch('comfy_utils.submit_job')
+    @patch('comfy_utils.submit_job_with_urls')
     @patch('cv2.VideoCapture')
     def test_pipeline_calls_trim(self, mock_cap, mock_submit, mock_upload, mock_convert, mock_trim):
         # Setup mocks

@@ -268,6 +268,59 @@ else:
     # Use default list from __init__
     client = ComfyUIClient()
 
+import tempfile
+import shutil
+
+def submit_job_with_urls(character_url, video_url):
+    """
+    Submits a job using URLs for character and video.
+    Downloads files from URLs to temp storage, uploads to ComfyUI, and queues workflow.
+    """
+    temp_dir = tempfile.mkdtemp()
+    try:
+        # Download character
+        char_filename = os.path.basename(character_url)
+        # Handle cases where url doesn't have a clean filename
+        if '?' in char_filename:
+            char_filename = char_filename.split('?')[0]
+        if not char_filename:
+            char_filename = "character.png"
+            
+        char_path = os.path.join(temp_dir, char_filename)
+        logger.info(f"Downloading character from {character_url} to {char_path}")
+        
+        with requests.get(character_url, stream=True) as r:
+            r.raise_for_status()
+            with open(char_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192): 
+                    f.write(chunk)
+                    
+        # Download video
+        video_filename = os.path.basename(video_url)
+        if '?' in video_filename:
+            video_filename = video_filename.split('?')[0]
+        if not video_filename:
+            video_filename = "video.mp4"
+            
+        video_path = os.path.join(temp_dir, video_filename)
+        logger.info(f"Downloading video from {video_url} to {video_path}")
+        
+        with requests.get(video_url, stream=True) as r:
+            r.raise_for_status()
+            with open(video_path, 'wb') as f:
+                for chunk in r.iter_content(chunk_size=8192): 
+                    f.write(chunk)
+        
+        # Now submit using the local files
+        return submit_job(char_path, video_path)
+        
+    except Exception as e:
+        logger.error(f"Submit job with URLs failed: {e}")
+        return None, str(e)
+    finally:
+        # Clean up temp dir
+        shutil.rmtree(temp_dir)
+
 def submit_job(character_path, video_path):
     """
     Orchestrates the whole process:
