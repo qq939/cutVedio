@@ -1,3 +1,3 @@
 
-User: 删掉"推送角色图片"和"推送视频"这两个按钮
-Assistant: Removed "推送角色图片" (Push Character Image) and "推送视频" (Push Video) buttons from `templates/index.html`. Cleaned up the corresponding JavaScript functions `manualUploadCharacter` and `manualUploadVideo`, and removed the unused backend routes `/manual_upload/character` and `/manual_upload/video` from `app.py`.
+User: comfyUI生成视频的命名是年月日时分秒new.mp4，中间不要有任何符号。
+Assistant: Updated the naming convention for generated videos in `app.py`. The new format is `YYYYMMDDHHMMSSnew.mp4` (e.g., `20260112133000new.mp4`), replacing the previous format that included brackets and underscores. Created `tests/test_video_naming.py` to verify the correct formatting.

@@ -399,9 +399,9 @@ def api_task_status(task_id):
                     filename = os.path.basename(local_path)
                     
                     # Upload to OBS with new naming convention
-                    # Naming: 【YYYY_MM_DD_HH_MM_SS】new.mp4
+                    # Naming: YYYYMMDDHHMMSSnew.mp4
                     now = datetime.now()
-                    obs_filename = now.strftime("【%Y_%m_%d_%H_%M_%S】new.mp4")
+                    obs_filename = now.strftime("%Y%m%d%H%M%Snew.mp4")
                     
                     logger.info(f"Uploading generated video to OBS as: {obs_filename}")
                     try:
