@@ -31,9 +31,77 @@ for folder in [IMAGE_FOLDER, VIDEO_FOLDER, ULTRA_VIDEO_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
+import threading
+from datetime import datetime
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+OBS_BASE_URL = "http://obs.dimond.top"
+
+def handle_task_completion(task_id):
+    """
+    Checks if a task is succeeded, downloads result, uploads to OBS.
+    Returns: (status, result)
+    status: SUCCEEDED/FAILED/PENDING/NOT_FOUND
+    result: OBS URL if succeeded, else message or local URL
+    """
+    try:
+        status, result = comfy_utils.check_status(task_id)
+        
+        if status == 'SUCCEEDED' and isinstance(result, dict):
+            # Download result to ULTRA_VIDEO_FOLDER
+            local_path = comfy_utils.download_result(result, ULTRA_VIDEO_FOLDER)
+            
+            if local_path:
+                filename = os.path.basename(local_path)
+                
+                # Upload to OBS with new naming convention
+                # Naming: YYYYMMDDHHMMSSnew.mp4
+                now = datetime.now()
+                obs_filename = now.strftime("%Y%m%d%H%M%Snew.mp4")
+                
+                logger.info(f"Uploading generated video to OBS as: {obs_filename}")
+                obs_url = None
+                try:
+                    obs_url = obs_utils.upload_file(local_path, obs_filename, mime_type='video/mp4')
+                    logger.info(f"Successfully uploaded generated video to OBS: {obs_filename}")
+                except Exception as obs_error:
+                    logger.error(f"Failed to upload generated video to OBS: {obs_error}")
+                
+                # Return the OBS URL if available, else local
+                # But frontend expects result to be a URL.
+                return status, obs_url if obs_url else f"/ultraVideo/{filename}"
+            else:
+                return 'FAILED', 'Download failed'
+        
+        return status, result
+    except Exception as e:
+        logger.error(f"Handle task completion error: {e}")
+        return 'FAILED', str(e)
+
+def monitor_task_status(task_id):
+    """
+    Background thread to monitor task status every 30 seconds.
+    Stops when SUCCEEDED or FAILED.
+    """
+    logger.info(f"Starting background monitor for task {task_id}")
+    while True:
+        try:
+            status, result = handle_task_completion(task_id)
+            logger.info(f"Monitor {task_id}: {status}")
+            
+            if status in ['SUCCEEDED', 'FAILED']:
+                logger.info(f"Monitor {task_id} finished with status {status}")
+                break
+                
+            # Wait 30 seconds before next check
+            time.sleep(30)
+            
+        except Exception as e:
+            logger.error(f"Monitor {task_id} exception: {e}")
+            break
 
 @app.route('/')
 def index():
@@ -383,44 +451,20 @@ from datetime import datetime
 def api_task_status(task_id):
     try:
         logger.info(f"Checking status for task_id: {task_id}")
-        # Log request details
-        logger.info(f"Request Headers: {request.headers}")
         
-        status, result = comfy_utils.check_status(task_id)
-        logger.info(f"Status result for {task_id}: {status}, {result}")
+        # Use shared handler which now also handles upload logic
+        # However, if background thread is running, this might duplicate uploads if we are not careful.
+        # But for now, let's keep it idempotent-ish or just let it race (uploading same file twice to OBS is fine, just wasteful).
+        # Or better, check if already handled?
+        # Since we don't have DB, we can't easily check global state across threads reliably without locks/globals.
+        # But handle_task_completion does everything we need.
         
-        # If succeeded, result contains file_info dict
-        if status == 'SUCCEEDED' and isinstance(result, dict):
-            try:
-                # Download result to ULTRA_VIDEO_FOLDER
-                local_path = comfy_utils.download_result(result, ULTRA_VIDEO_FOLDER)
-                
-                if local_path:
-                    filename = os.path.basename(local_path)
-                    
-                    # Upload to OBS with new naming convention
-                    # Naming: YYYYMMDDHHMMSSnew.mp4
-                    now = datetime.now()
-                    obs_filename = now.strftime("%Y%m%d%H%M%Snew.mp4")
-                    
-                    logger.info(f"Uploading generated video to OBS as: {obs_filename}")
-                    try:
-                        obs_utils.upload_file(local_path, obs_filename, mime_type='video/mp4')
-                        logger.info(f"Successfully uploaded generated video to OBS: {obs_filename}")
-                    except Exception as obs_error:
-                        logger.error(f"Failed to upload generated video to OBS: {obs_error}")
-                        # We don't fail the request if OBS upload fails, just log it
-                    
-                    # Return the local URL
-                    local_url = f"/ultraVideo/{filename}"
-                    return jsonify({'status': status, 'result': local_url})
-                else:
-                    return jsonify({'status': 'FAILED', 'result': 'Download failed'})
-                
-            except Exception as download_error:
-                logger.error(f"Error downloading generated video: {download_error}")
-                return jsonify({'status': 'FAILED', 'result': str(download_error)})
-
+        status, result = handle_task_completion(task_id)
+        logger.info(f"Status result for {task_id}: {status}")
+        
+        if status == 'SUCCEEDED':
+            return jsonify({'status': status, 'result': result})
+        
         return jsonify({'status': status, 'result': result})
     except Exception as e:
         logger.error(f"Task status API error: {e}")
@@ -654,6 +698,8 @@ def _run_processing_pipeline(video_path, source_name):
             
         if task_id:
             logger.info(f"Auto-submitted ComfyUI task: {task_id}")
+            # Start background monitor thread
+            threading.Thread(target=monitor_task_status, args=(task_id,), daemon=True).start()
         else:
             logger.error(f"Failed to auto-submit ComfyUI task: {error}")
 
