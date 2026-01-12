@@ -460,6 +460,10 @@
         "100",
         0
       ],
+      "pose_video": [
+        "101",
+        0
+      ],
       "background_video": [
         "275",
         0
@@ -626,6 +630,10 @@
       ],
       "face_video": [
         "100",
+        0
+      ],
+      "pose_video": [
+        "101",
         0
       ],
       "background_video": [
