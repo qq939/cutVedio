@@ -285,26 +285,38 @@ def manual_upload_character_image():
             return jsonify({'error': 'No selected file'}), 400
             
         if file:
-            # Always save as face/lulu.webp
-            target_path = os.path.join(BASE_DIR, 'face', 'lulu.webp')
+            # Use temp file instead of persistent face/lulu.webp
+            temp_dir = os.path.join(BASE_DIR, 'tmp')
+            if not os.path.exists(temp_dir):
+                os.makedirs(temp_dir)
+                
+            # We want to convert to PNG and name it lulu.png (conceptually for OBS)
+            # But locally we just need a temp file.
+            temp_path = os.path.join(temp_dir, 'lulu_temp.png')
             
-            # Convert to webp using PIL to ensure compatibility and correct format
             try:
                 img = Image.open(file)
-                # Convert to RGBA if needed to preserve transparency, or RGB if not
+                # Convert to RGBA for PNG
                 if img.mode not in ('RGB', 'RGBA'):
                     img = img.convert('RGBA')
                     
-                img.save(target_path, 'WEBP')
-                logger.info(f"Uploaded image converted and saved to {target_path}")
+                img.save(temp_path, 'PNG')
+                logger.info(f"Uploaded image converted to PNG: {temp_path}")
                 
-                # Also upload to OBS immediately as per existing flow?
-                # manual_upload_character() does this.
-                obs_url = convert_and_upload_character(target_path)
+                # Upload to OBS as lulu.png
+                obs_url = obs_utils.upload_file(temp_path, 'lulu.png', mime_type='image/png')
                 
-                return jsonify({'message': 'Image uploaded and replaced successfully', 'url': obs_url})
+                # Clean up
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                    
+                if obs_url:
+                    return jsonify({'message': 'Image uploaded to OBS as lulu.png successfully', 'url': obs_url})
+                else:
+                    return jsonify({'error': 'Failed to upload to OBS'}), 500
+                    
             except Exception as convert_error:
-                logger.error(f"Image conversion error: {convert_error}")
+                logger.error(f"Image conversion/upload error: {convert_error}")
                 return jsonify({'error': f'Failed to process image: {convert_error}'}), 500
                 
     except Exception as e:
