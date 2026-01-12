@@ -256,9 +256,6 @@
                 <div style="margin-bottom: 15px; padding: 12px; background-color: #f8f9fa; border: 1px dashed #dee2e6; border-radius: 6px;">
                     <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">手动推送 (失败重试)</div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <button type="button" class="action-btn" onclick="manualUploadCharacter()">推送角色图片</button>
-                        <button type="button" class="action-btn" onclick="manualUploadVideo()">推送视频</button>
-                        
                         <!-- Upload Image Button -->
                         <div style="position: relative;">
                             <input type="file" id="characterImageInput" accept="image/png, image/jpeg, image/webp" style="display: none;" onchange="uploadCharacterImage(this)">
@@ -550,50 +547,6 @@
                 statusDiv.textContent = '上传请求错误: ' + error;
                 statusDiv.style.color = 'red';
                 input.value = '';
-            });
-        }
-
-        function manualUploadCharacter() {
-            const statusDiv = document.getElementById('manualUploadStatus');
-            statusDiv.textContent = '正在推送角色图片...';
-            statusDiv.style.color = 'blue';
-            
-            fetch('/manual_upload/character', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    statusDiv.textContent = '角色图片推送失败: ' + data.error;
-                    statusDiv.style.color = 'red';
-                } else {
-                    statusDiv.innerHTML = `角色图片推送成功! <a href="${data.url}" target="_blank">链接</a>`;
-                    statusDiv.style.color = 'green';
-                }
-            })
-            .catch(error => {
-                statusDiv.textContent = '请求错误: ' + error;
-                statusDiv.style.color = 'red';
-            });
-        }
-
-        function manualUploadVideo() {
-            const statusDiv = document.getElementById('manualUploadStatus');
-            statusDiv.textContent = '正在推送视频...';
-            statusDiv.style.color = 'blue';
-            
-            fetch('/manual_upload/video', { method: 'POST' })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    statusDiv.textContent = '视频推送失败: ' + data.error;
-                    statusDiv.style.color = 'red';
-                } else {
-                    statusDiv.innerHTML = `视频推送成功! <a href="${data.url}" target="_blank">链接</a>`;
-                    statusDiv.style.color = 'green';
-                }
-            })
-            .catch(error => {
-                statusDiv.textContent = '请求错误: ' + error;
-                statusDiv.style.color = 'red';
             });
         }
 
