@@ -758,6 +758,7 @@ def _run_processing_pipeline(video_path, source_name):
             'video_url': video_obs_url if video_obs_url else f"/video/{video_filename}",
             'original_url': source_name,
             'task_id': task_id,
+            'comfyUIID': task_id,
             'upload_urls': {
                 'character': character_url,
                 'video': video_obs_url
